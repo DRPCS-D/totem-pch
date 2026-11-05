@@ -12,7 +12,7 @@ Pantalla publicitaria con ruleta de sorteos para el totem **Joog SV55L** (55", A
 ## Cómo funciona
 
 1. Quien administra entra al panel, cambia anuncios, premios o colores y se guarda en la hoja de Google.
-2. El totem pregunta cada minuto si hubo cambios (`totemRev`, una consulta barata) y se actualiza solo.
+2. El totem pregunta **cada hora** si hubo cambios (`totemRev`, una consulta barata) y se actualiza solo. Para verlos al instante: **5 toques seguidos en la esquina superior derecha** de la pantalla del totem (zona invisible) fuerzan la actualización.
 3. El sorteo lo decide **el servidor** (acción `girar`): respeta pesos, stock y el límite de giros por teléfono, y registra al participante. El navegador del totem solo anima la ruleta.
 
 Roles: **admin** (todo, incluye usuarios) y **editor** (anuncios, ruleta, participantes, apariencia).

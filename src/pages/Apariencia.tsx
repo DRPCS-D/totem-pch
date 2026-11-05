@@ -32,7 +32,7 @@ export default function Apariencia() {
     })
     setGuardando(false)
     if (err) return toast.error(err)
-    toast.success('Apariencia guardada. El totem se actualiza en ~1 minuto.')
+    toast.success('Apariencia guardada. El totem lo aplicará en su próxima actualización (cada hora).')
     setSucio(false)
     refetch()
   }

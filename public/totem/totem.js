@@ -5,7 +5,9 @@
   'use strict';
   var API = window.TOTEM_API || '';
   var CACHE_KEY = 'totem-pch:contenido';
-  var REV_INTERVALO = 60000;
+  var REV_INTERVALO = 3600000;   // consulta de cambios: cada hora
+  var REV_MIN_VISIBLE = 600000;  // al volver a la pantalla, no consultar si fue hace menos de 10 min
+  var ultimaRev = Date.now();
 
   var $ = function (s) { return document.querySelector(s); };
   var stage = $('#stage');
@@ -40,6 +42,7 @@
     }).catch(function () { setOffline(true); });
   }
   function revisar() {
+    ultimaRev = Date.now();
     api('totemRev').then(function (j) { setOffline(false); if (j.rev !== data.rev) descargar(); }).catch(function () { setOffline(true); });
   }
 
@@ -141,6 +144,19 @@
   function paintFields() {
     document.querySelectorAll('.inp').forEach(function (i) { i.textContent = game.data[i.dataset.f]; i.classList.toggle('focus', game.focus === i.dataset.f); });
   }
+  /* Acceso oculto: 5 toques en la esquina superior derecha fuerzan la actualización del contenido */
+  var tapsF = 0, tapFT;
+  $('#forzar').addEventListener('pointerdown', function () {
+    tapsF++; clearTimeout(tapFT); tapFT = setTimeout(function () { tapsF = 0; }, 2000);
+    if (tapsF < 5) return;
+    tapsF = 0; aviso('Actualizando…');
+    api('totemConfig').then(function (j) {
+      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, rev: j.rev };
+      guardarCache(d); setOffline(false); aplicarContenido(d); ultimaRev = Date.now(); aviso('Contenido actualizado ✓');
+    }).catch(function () { setOffline(true); aviso('No se pudo actualizar'); });
+  });
+  function aviso(t) { var e = $('#aviso'); e.textContent = t; e.style.display = 'block'; clearTimeout(aviso.t); aviso.t = setTimeout(function () { e.style.display = 'none'; }, 2500); }
+
   function err(m) { var e = $('#err'); if (e) e.textContent = m; }
   function submitForm() {
     var c = data.config, d = game.data;
@@ -225,7 +241,7 @@
   /* ---------- Pantalla completa y que no se apague ---------- */
   var wl = null;
   function mantenerEncendida() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wl = l; }).catch(function () {}); } catch (e) {} }
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { mantenerEncendida(); revisar(); } });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { mantenerEncendida(); if (Date.now() - ultimaRev > REV_MIN_VISIBLE) revisar(); } });
   addEventListener('pointerdown', function () {
     var enMarco = window.top !== window.self;
     if (!enMarco && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});

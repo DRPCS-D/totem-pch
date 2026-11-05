@@ -37,6 +37,8 @@
   @keyframes tick { to { transform:translateX(-100%); } }
   #cta { position:absolute; left:80px; right:80px; bottom:150px; height:150px; z-index:20; border:0; border-radius:80px; font-size:54px; font-weight:900; color:#111; background:var(--accent); box-shadow:0 10px 40px #0008; animation:pulse 1.6s infinite; cursor:pointer; }
   @keyframes pulse { 50% { transform:scale(1.04); } }
+  #forzar { position:absolute; top:0; right:0; width:260px; height:130px; z-index:26; }
+  #aviso { position:absolute; top:120px; left:50%; transform:translateX(-50%); z-index:27; background:#111c; padding:10px 32px; border-radius:30px; font-size:32px; display:none; }
   #offline { position:absolute; top:120px; left:50%; transform:translateX(-50%); z-index:25; background:#b91c1c; padding:8px 28px; border-radius:30px; font-size:28px; display:none; }
 
   #game { position:absolute; inset:0; z-index:30; background:radial-gradient(circle at 50% 30%, color-mix(in srgb,var(--primary) 70%,#000), #070a16 75%); display:none; flex-direction:column; align-items:center; padding:140px 60px 60px; }
@@ -76,6 +78,8 @@
   <div id="top"><div id="logo"></div><div id="clock"></div></div>
   <div id="ads"></div>
   <div id="offline">Sin conexión</div>
+  <div id="aviso"></div>
+  <div id="forzar"></div>
   <button id="cta"></button>
   <div id="ticker"><span id="tickerText"></span></div>
 
