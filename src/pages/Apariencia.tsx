@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { ErrorBox } from '@/components/ui/estado'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfig } from '@/hooks/useConfig'
 import { CONFIG_DEFECTO, type ConfigTotem } from '@/lib/tipos'
-
-const COLOR = 'h-9.5 w-full cursor-pointer rounded-md border border-input bg-card p-1'
 
 export default function Apariencia() {
   const { config, loading, error, guardar, refetch } = useConfig()
@@ -62,10 +61,10 @@ export default function Apariencia() {
                 <Input value={d.logoUrl} onChange={(e) => set('logoUrl', e.target.value)} placeholder="https://…/logo.png" />
               </Field>
               <Field label="Color principal (celeste)">
-                <input type="color" value={d.primary} onChange={(e) => set('primary', e.target.value)} className={COLOR} />
+                <ColorField value={d.primary} onChange={(v) => set('primary', v)} />
               </Field>
               <Field label="Color de acento (botones, ruleta)">
-                <input type="color" value={d.accent} onChange={(e) => set('accent', e.target.value)} className={COLOR} />
+                <ColorField value={d.accent} onChange={(v) => set('accent', v)} />
               </Field>
             </div>
           </section>

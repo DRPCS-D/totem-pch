@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { ErrorBox } from '@/components/ui/estado'
 import { Field, Input, Select } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
@@ -111,7 +112,7 @@ export function AnuncioFormModal({
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Precio / etiqueta" hint="Ej.: 45.000 Gs."><Input value={d.precio} onChange={(e) => set('precio', e.target.value)} maxLength={40} /></Field>
               <Field label="Color de fondo">
-                <input type="color" value={d.color} onChange={(e) => set('color', e.target.value)} className="h-9.5 w-full cursor-pointer rounded-md border border-input bg-card p-1" />
+                <ColorField value={d.color} onChange={(v) => set('color', v)} />
               </Field>
             </div>
           </>

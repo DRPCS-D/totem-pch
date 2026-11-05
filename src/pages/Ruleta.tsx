@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { ErrorBox } from '@/components/ui/estado'
 import { Field, Input } from '@/components/ui/field'
 import { ConfirmModal, Modal } from '@/components/ui/modal'
@@ -74,9 +75,9 @@ function PremioModal({
     >
       <div className="space-y-4">
         <Field label="Texto en la ruleta *"><Input value={d.etiqueta} onChange={(e) => set('etiqueta', e.target.value)} maxLength={40} autoFocus /></Field>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Color">
-            <input type="color" value={d.color} onChange={(e) => set('color', e.target.value)} className="h-9.5 w-full cursor-pointer rounded-md border border-input bg-card p-1" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Color" className="sm:col-span-2">
+            <ColorField value={d.color} onChange={(v) => set('color', v)} />
           </Field>
           <Field label="Peso" hint="Probabilidad relativa.">
             <Input type="number" min={0} value={d.peso} onChange={(e) => set('peso', Number(e.target.value))} />
