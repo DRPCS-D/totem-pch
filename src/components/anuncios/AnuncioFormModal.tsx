@@ -158,7 +158,7 @@ export function AnuncioFormModal({
         )}
 
         {d.tipo === 'video' && (
-          <Field label="Video: enlace de Google Drive o URL de un .mp4 *" hint="En Drive: clic derecho → Compartir → «Cualquier persona con el enlace» → Copiar enlace. Se reproduce sin sonido. Con Drive conviene indicar los segundos por si el video no se puede reproducir directo.">
+          <Field label="Video: enlace de Google Drive o URL de un .mp4 *" hint="Con Drive: copia el enlace del archivo (debe ser accesible por la cuenta que publicó el Apps Script). Máximo 20 MB; se reproduce sin sonido y el totem lo guarda para verlo también sin internet.">
             <Input value={d.src} onChange={(e) => set('src', e.target.value)} placeholder="https://drive.google.com/file/d/…/view" />
           </Field>
         )}

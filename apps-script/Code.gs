@@ -76,6 +76,7 @@ function doPost(e) {
       case 'totemConfig':       return handleTotemConfig_();
       case 'totemRev':          return handleTotemRev_();
       case 'girar':             return handleGirar_(body);
+      case 'totemVideo':        return handleTotemVideo_(body);
       // Panel
       case 'login':             return handleLogin_(body);
       case 'getRevisions':      return handleGetRevisions_(body);
@@ -248,6 +249,29 @@ function handleTotemConfig_() {
     anuncios: anuncios,
     premios: premios
   });
+}
+
+var MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+
+function driveIdDe_(u) {
+  var m = /(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]{10,})/.exec(String(u || ''));
+  return m ? m[1] : null;
+}
+
+/**
+ * Entrega al totem un video de Drive (base64). Solo sirve archivos que estén en un anuncio de video activo,
+ * para que nadie pueda pedir cualquier archivo de Drive conociendo su ID. Corre como el dueño del script,
+ * así que el archivo no necesita estar compartido públicamente (sí accesible por la cuenta que publica el script).
+ */
+function handleTotemVideo_(body) {
+  var id = String(body.id || '');
+  if (!/^[\w-]{10,}$/.test(id)) throw new Error('Video inválido.');
+  var permitido = leerAnuncios_().some(function (a) { return a.tipo === 'video' && a.activo && driveIdDe_(a.src) === id; });
+  if (!permitido) throw new Error('Ese video no pertenece a un anuncio activo.');
+  var archivo = DriveApp.getFileById(id);
+  if (archivo.getSize() > MAX_VIDEO_BYTES) throw new Error('El video pesa más de 20 MB.');
+  var blob = archivo.getBlob();
+  return jsonOut_({ ok: true, mime: blob.getContentType() || 'video/mp4', base64: Utilities.base64Encode(blob.getBytes()) });
 }
 
 function handleGirar_(body) {

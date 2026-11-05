@@ -23,9 +23,9 @@
   function guardarCache(d) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch (e) {} }
 
   /* ---------- API ---------- */
-  function api(action, payload) {
+  function api(action, payload, ms) {
     if (!API) return Promise.reject(new Error('Falta configurar la dirección del servidor.'));
-    var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 25000);
+    var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, ms || 25000);
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action: action }, payload || {})), signal: ctl.signal })
       .then(function (r) { return r.json(); })
       .then(function (j) { if (!j || j.ok !== true) { var e = new Error((j && j.error) || 'Error del servidor.'); e.servidor = true; throw e; } return j; })
@@ -66,6 +66,7 @@
     $('#cta').style.display = g.raffleEnabled && d.premios.length >= 2 ? '' : 'none';
     document.title = g.nombre;
     nextAd(true);
+    precargarVideos();
   }
   setInterval(function () { $('#clock').textContent = new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }); }, 1000);
 
@@ -80,6 +81,44 @@
     var m = /(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]{10,})/.exec(String(u || ''));
     return m ? m[1] : null;
   }
+  /* Videos de Drive: el servidor los entrega (Apps Script), se guardan en caché del navegador
+     y se reproducen desde ahí: arrancan solos, avisan cuándo terminan y funcionan sin internet. */
+  var VCACHE = 'totem-pch-videos', vurls = {}, vbajando = {};
+  var vkey = function (id) { return '/__video/' + id; };
+  function videoURL(id) {
+    if (vurls[id]) return Promise.resolve(vurls[id]);
+    if (vbajando[id]) return vbajando[id];
+    var p = (window.caches ? caches.open(VCACHE).then(function (c) { return c.match(vkey(id)); }).catch(function () { return null; }) : Promise.resolve(null))
+      .then(function (r) { return r ? r.blob() : null; })
+      .then(function (blob) {
+        if (blob) return blob;
+        return api('totemVideo', { id: id }, 240000).then(function (j) {
+          var bin = atob(j.base64), u8 = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+          var b = new Blob([u8], { type: j.mime || 'video/mp4' });
+          if (window.caches) caches.open(VCACHE).then(function (c) { return c.put(vkey(id), new Response(b, { headers: { 'Content-Type': b.type } })); }).catch(function () {});
+          return b;
+        });
+      })
+      .then(function (blob) { vurls[id] = URL.createObjectURL(blob); return vurls[id]; });
+    vbajando[id] = p;
+    p.then(function () { delete vbajando[id]; }, function () { delete vbajando[id]; });
+    return p;
+  }
+  /* Baja en segundo plano los videos de los anuncios (uno por uno) y borra del caché los que ya no se usan. */
+  function precargarVideos() {
+    var ids = data.anuncios.filter(function (a) { return a.tipo === 'video' && a.activo !== false; }).map(function (a) { return driveId(a.src); }).filter(Boolean);
+    if (window.caches) caches.open(VCACHE).then(function (c) {
+      return c.keys().then(function (ks) { ks.forEach(function (k) { var id = k.url.split('/__video/')[1]; if (id && ids.indexOf(id) < 0) c.delete(k); }); });
+    }).catch(function () {});
+    ids.reduce(function (p, id) { return p.then(function () { return videoURL(id).catch(function () {}); }); }, Promise.resolve());
+  }
+  function reproductorDrive(el, did, a) {
+    // Último recurso (p. ej. el video pesa demasiado): reproductor incrustado de Drive; dura lo configurado.
+    if (!el.classList.contains('in')) return;
+    el.innerHTML = '<iframe src="https://drive.google.com/file/d/' + did + '/preview" allow="autoplay"></iframe>';
+    clearTimeout(adTimer); adTimer = setTimeout(function () { nextAd(); }, (a.duracion > 0 ? a.duracion : 60) * 1000);
+  }
   function buildSlide(a) {
     var el = document.createElement('div'); el.className = 'slide';
     if (a.tipo === 'imagen') {
@@ -90,15 +129,10 @@
       else el.querySelector('img').onerror = function () { if (urls.length === 1) nextAd(); };
     } else if (a.tipo === 'video') {
       var did = driveId(a.src);
-      var vsrc = did ? 'https://drive.usercontent.google.com/download?id=' + did + '&export=download&confirm=t' : a.src;
-      el.innerHTML = '<video src="' + esc(vsrc) + '" muted autoplay playsinline></video>';
+      el.innerHTML = '<video muted autoplay playsinline' + (did ? '' : ' src="' + esc(a.src) + '"') + '></video>';
       var v = el.querySelector('video'); v.onended = function () { nextAd(); };
-      v.onerror = function () {
-        if (!did || !el.classList.contains('in')) { nextAd(); return; }
-        // Drive no entregó el archivo directo: se usa su reproductor incrustado (sin aviso de fin: dura lo configurado).
-        el.innerHTML = '<iframe src="https://drive.google.com/file/d/' + did + '/preview" allow="autoplay" style="position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none"></iframe>';
-        clearTimeout(adTimer); adTimer = setTimeout(function () { nextAd(); }, (a.duracion > 0 ? a.duracion : 60) * 1000);
-      };
+      v.onerror = function () { if (did) reproductorDrive(el, did, a); else nextAd(); };
+      if (did) videoURL(did).then(function (u) { v.src = u; var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }).catch(function () { reproductorDrive(el, did, a); });
     } else {
       el.style.background = 'linear-gradient(160deg,' + a.color + ',#000 140%)';
       el.innerHTML = '<h1>' + esc(a.titulo) + '</h1>' + (a.subtitulo ? '<h2>' + esc(a.subtitulo) + '</h2>' : '') + (a.precio ? '<div class="price">' + esc(a.precio) + '</div>' : '');
@@ -119,7 +153,7 @@
       var fotos = el.querySelectorAll('.ph');
       for (var k = 1; k < n; k++) (function (k) { galeria.push(setTimeout(function () { fotos.forEach(function (f, j) { f.classList.toggle('on', j === k); }); }, k * seg * 1000)); })(k);
     }
-    if (a.tipo === 'video' && !(a.duracion > 0)) adTimer = setTimeout(function () { nextAd(); }, 180000);
+    if (a.tipo === 'video' && (!(a.duracion > 0) || driveId(a.src))) adTimer = setTimeout(function () { nextAd(); }, 180000);
     else adTimer = setTimeout(function () { nextAd(); }, seg * n * 1000);
   }
 

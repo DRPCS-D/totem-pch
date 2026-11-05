@@ -56,7 +56,7 @@ En Vercel: importar el repositorio y definir la variable de entorno **`VITE_APPS
 
 - **Seguridad de contraseñas**: se guardan en texto plano en la hoja y viajan en cada llamada (heredado de `gestor-tareas`; aceptable para uso interno, no reutilices contraseñas personales).
 - La acción pública `girar` puede ser invocada por cualquiera que conozca la URL del backend; el límite por teléfono mitiga el abuso pero no lo impide del todo.
-- Videos: enlace de Google Drive («Cualquier persona con el enlace») o URL directa a un .mp4. Con Drive el totem intenta la descarga directa y, si Drive la bloquea (archivos grandes o demasiadas reproducciones), usa el reproductor de Drive durante los segundos configurados. Para mayor fiabilidad, usa videos livianos (< 25 MB). Las imágenes sí se suben a Drive desde el panel.
+- Videos: enlace de Google Drive (máx. 20 MB; el totem los baja a través del Apps Script, los guarda en su caché y los reproduce solos, también sin internet) o URL directa a un .mp4. El archivo debe ser accesible por la cuenta que publicó el Apps Script. Las imágenes se suben a Drive desde el panel.
 - Un solo totem por ahora (un único conjunto de anuncios y premios).
 - Cuota de Apps Script: muchos totems o consultas muy frecuentes pueden toparse con los límites diarios de cuentas gmail.com.
 

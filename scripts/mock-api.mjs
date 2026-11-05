@@ -23,12 +23,15 @@ let premios = [
 ]
 let participantes = []
 let usuarios = [{ usuario: 'ADMIN', password: 'admin', rol: 'admin', activo: true, nombre: 'Administrador' }]
+const videos = {}
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 function handle(b) {
   const user = usuarios.find((u) => u.usuario.toUpperCase() === String(b.usuario || '').toUpperCase() && u.password === b.password && u.activo)
   const auth = () => { if (!user) throw Object.assign(new Error('Sesión no válida.'), { codigo: 'SESION' }); return user }
   switch (b.action) {
+    case 'seedVideo': videos[b.id] = { mime: b.mime, base64: b.base64 }; return {}
+    case 'totemVideo': if (!videos[b.id]) throw new Error('Video inválido.'); return videos[b.id]
     case 'totemRev': return { rev: `${rev.config}.${rev.anuncios}.${rev.premios}` }
     case 'totemConfig':
       return { rev: `${rev.config}.${rev.anuncios}.${rev.premios}`, config, anuncios: anuncios.filter((a) => a.activo), premios: premios.filter((p) => p.activo).map(({ id, etiqueta, color, gana }) => ({ id, etiqueta, color, gana })) }
