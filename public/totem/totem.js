@@ -67,7 +67,7 @@
   setInterval(function () { $('#clock').textContent = new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }); }, 1000);
 
   /* ---------- Anuncios ---------- */
-  var idx = -1, adTimer;
+  var idx = -1, adTimer, galeria = [];
   function activos() {
     var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     return data.anuncios.filter(function (a) { return a.activo !== false && (!a.desde || a.desde <= t) && (!a.hasta || a.hasta >= t); });
@@ -75,8 +75,11 @@
   function buildSlide(a) {
     var el = document.createElement('div'); el.className = 'slide';
     if (a.tipo === 'imagen') {
-      el.innerHTML = '<img src="' + esc(a.src) + '" alt="">' + (a.titulo ? '<div class="cap">' + esc(a.titulo) + '</div>' : '');
-      el.querySelector('img').onerror = function () { nextAd(); };
+      var urls = String(a.src || '').split('\n').map(function (u) { return u.trim(); }).filter(Boolean);
+      el.innerHTML = urls.map(function (u, i) { return '<img class="ph' + (i === 0 ? ' on' : '') + '" src="' + esc(u) + '" alt="">'; }).join('') + (a.titulo ? '<div class="cap">' + esc(a.titulo) + '</div>' : '');
+      el.dataset.n = urls.length;
+      if (!urls.length) setTimeout(function () { nextAd(); }, 0);
+      else el.querySelector('img').onerror = function () { if (urls.length === 1) nextAd(); };
     } else if (a.tipo === 'video') {
       el.innerHTML = '<video src="' + esc(a.src) + '" muted autoplay playsinline></video>';
       var v = el.querySelector('video'); v.onended = function () { nextAd(); }; v.onerror = function () { nextAd(); };
@@ -87,7 +90,7 @@
     return el;
   }
   function nextAd(restart) {
-    clearTimeout(adTimer);
+    clearTimeout(adTimer); galeria.forEach(clearTimeout); galeria = [];
     var list = activos(), box = $('#ads');
     if (!list.length) { box.innerHTML = '<div class="empty">' + esc(data.config.nombre) + '</div>'; adTimer = setTimeout(function () { nextAd(); }, 10000); return; }
     if (restart) idx = -1;
@@ -95,8 +98,13 @@
     var a = list[idx], old = box.querySelectorAll('.slide,.empty'), el = buildSlide(a);
     box.appendChild(el); void el.offsetWidth; el.classList.add('in');
     old.forEach(function (o) { o.classList.remove('in'); setTimeout(function () { o.remove(); }, 900); });
+    var seg = Math.max(2, a.duracion || 8), n = a.tipo === 'imagen' ? Math.max(1, Number(el.dataset.n) || 1) : 1;
+    if (n > 1) {
+      var fotos = el.querySelectorAll('img.ph');
+      for (var k = 1; k < n; k++) (function (k) { galeria.push(setTimeout(function () { fotos.forEach(function (f, j) { f.classList.toggle('on', j === k); }); }, k * seg * 1000)); })(k);
+    }
     if (a.tipo === 'video' && !(a.duracion > 0)) adTimer = setTimeout(function () { nextAd(); }, 180000);
-    else adTimer = setTimeout(function () { nextAd(); }, Math.max(2, a.duracion || 8) * 1000);
+    else adTimer = setTimeout(function () { nextAd(); }, seg * n * 1000);
   }
 
   /* ---------- Juego ---------- */

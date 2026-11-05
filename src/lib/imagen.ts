@@ -28,3 +28,7 @@ export async function subirImagen(archivo: File): Promise<string> {
   const r = await callApi<{ url: string }>('subirImagen', conCredenciales({ mime: 'image/jpeg', base64 }))
   return r.url
 }
+
+/** Un anuncio de imagen guarda varias URLs en `src`, una por línea. */
+export const imagenesDe = (src: string): string[] => src.split('\n').map((u) => u.trim()).filter(Boolean)
+export const unirImagenes = (urls: string[]): string => urls.join('\n')

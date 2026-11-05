@@ -8,13 +8,21 @@ import { ErrorBox, Vacio } from '@/components/ui/estado'
 import { ConfirmModal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAnuncios } from '@/hooks/useAnuncios'
+import { imagenesDe } from '@/lib/imagen'
 import { TIPO_ANUNCIO_LABEL, type Anuncio } from '@/lib/tipos'
 
 const ICONO = { texto: Type, imagen: ImageIcon, video: Film }
 
 function Miniatura({ a }: { a: Anuncio }) {
   const Icono = ICONO[a.tipo]
-  if (a.tipo === 'imagen' && a.src) return <img src={a.src} alt="" className="h-20 w-11 shrink-0 rounded-md object-cover" />
+  const imgs = imagenesDe(a.src)
+  if (a.tipo === 'imagen' && imgs.length)
+    return (
+      <div className="relative shrink-0">
+        <img src={imgs[0]} alt="" className="h-20 w-11 rounded-md object-cover" />
+        {imgs.length > 1 && <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1 text-[10px] text-white">{imgs.length}</span>}
+      </div>
+    )
   return (
     <div
       className="flex h-20 w-11 shrink-0 items-center justify-center rounded-md text-white"
@@ -77,7 +85,7 @@ export default function Anuncios() {
               <button type="button" onClick={() => setModal(a)} className="min-w-0 flex-1 basis-40 text-left">
                 <p className="truncate text-sm font-medium text-foreground">{a.titulo || TIPO_ANUNCIO_LABEL[a.tipo]}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {TIPO_ANUNCIO_LABEL[a.tipo]} · {a.duracion ? `${a.duracion} s` : 'hasta terminar'} · {vigencia(a)}
+                  {a.tipo === 'imagen' ? `${imagenesDe(a.src).length} imagen(es) × ${a.duracion} s` : `${TIPO_ANUNCIO_LABEL[a.tipo]} · ${a.duracion ? `${a.duracion} s` : 'hasta terminar'}`} · {vigencia(a)}
                 </p>
               </button>
               <Badge tono={a.activo ? 'success' : 'neutral'}>{a.activo ? 'Activo' : 'Pausado'}</Badge>
