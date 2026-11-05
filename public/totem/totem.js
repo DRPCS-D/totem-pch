@@ -276,18 +276,37 @@
       x.restore();
     });
   }
+  /* Al pulsar GIRAR la ruleta empieza a girar de inmediato (acelera) mientras el servidor decide el resultado
+     (puede tardar 1-3 s); cuando llega, frena suavemente hasta el premio. */
   function spin() {
     if (game.spinning) return;
     game.spinning = true; clearTimeout(game.idleT);
-    var b = $('#spin'); b.disabled = true; err('');
+    $('#spin').disabled = true; err('');
+    var w = $('#wheel'), ang = game.rot % 360, vel = 0, t0 = null, esperando = true, raf = 0;
+    w.style.transition = 'none';
+    function tick(t) {
+      if (!esperando) return;
+      var dt = t0 === null ? 16 : Math.min(50, t - t0); t0 = t;
+      vel = Math.min(1.1, vel + dt * 0.003);          // grados por ms; llega a ~3 vueltas/s en 0,4 s
+      ang += vel * dt; w.style.transform = 'rotate(' + ang + 'deg)';
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
     api('girar', { nombre: game.data.name, telefono: game.data.phone }).then(function (r) {
+      esperando = false; cancelAnimationFrame(raf);
       var i = data.premios.findIndex(function (p) { return p.id === r.premioId; });
       if (i < 0) i = 0;
       var seg = 360 / data.premios.length, center = (i + .5) * seg, jitter = (Math.random() - .5) * seg * .7;
-      game.rot = 360 * 7 + (360 - center + jitter);
-      $('#wheel').style.transform = 'rotate(' + game.rot + 'deg)';
-      setTimeout(function () { finish(r); }, 6300);
+      var objetivo = ((360 - center + jitter) % 360 + 360) % 360;
+      var final = ang - (ang % 360) + objetivo + 360 * 4;
+      while (final < ang + 360 * 3) final += 360;
+      w.style.transform = 'rotate(' + ang + 'deg)'; void w.offsetWidth;   // parte desde donde va, sin salto
+      w.style.transition = 'transform 5s cubic-bezier(.12,.7,.1,1)';
+      w.style.transform = 'rotate(' + final + 'deg)';
+      game.rot = final;
+      setTimeout(function () { finish(r); }, 5300);
     }).catch(function (e) {
+      esperando = false; cancelAnimationFrame(raf);
       game.spinning = false; resetIdle();
       renderForm(e.message);
     });
