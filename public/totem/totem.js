@@ -1,0 +1,235 @@
+/* Totem PCH - pantalla publicitaria (kiosco). Sin dependencias.
+   Lee su contenido del backend (Apps Script / Google Sheets) y lo guarda en caché local:
+   si se cae internet sigue mostrando lo último que descargó. */
+(function () {
+  'use strict';
+  var API = window.TOTEM_API || '';
+  var CACHE_KEY = 'totem-pch:contenido';
+  var REV_INTERVALO = 60000;
+
+  var $ = function (s) { return document.querySelector(s); };
+  var stage = $('#stage');
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+  var DEF = {
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#1d4ed8', accent: '#f59e0b', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    anuncios: [], premios: [], rev: ''
+  };
+  var data = DEF, pendiente = null;
+
+  function leerCache() { try { var c = JSON.parse(localStorage.getItem(CACHE_KEY)); if (c && c.config) return c; } catch (e) {} return null; }
+  function guardarCache(d) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch (e) {} }
+
+  /* ---------- API ---------- */
+  function api(action, payload) {
+    if (!API) return Promise.reject(new Error('Falta configurar la dirección del servidor.'));
+    var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 25000);
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action: action }, payload || {})), signal: ctl.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (!j || j.ok !== true) { var e = new Error((j && j.error) || 'Error del servidor.'); e.servidor = true; throw e; } return j; })
+      .catch(function (e) { if (e.servidor) throw e; var n = new Error('Sin conexión con el servidor.'); n.red = true; throw n; })
+      .finally(function () { clearTimeout(t); });
+  }
+
+  function setOffline(v) { $('#offline').style.display = v ? 'block' : 'none'; }
+
+  function descargar() {
+    return api('totemConfig').then(function (j) {
+      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, rev: j.rev };
+      guardarCache(d); setOffline(false); aplicarContenido(d);
+    }).catch(function () { setOffline(true); });
+  }
+  function revisar() {
+    api('totemRev').then(function (j) { setOffline(false); if (j.rev !== data.rev) descargar(); }).catch(function () { setOffline(true); });
+  }
+
+  /* ---------- Escala ---------- */
+  function fit() { var s = Math.min(innerWidth / 1080, innerHeight / 1920); stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')'; }
+  addEventListener('resize', fit); fit();
+
+  /* ---------- Contenido ---------- */
+  function aplicarContenido(d) {
+    // No se cambia nada a mitad de una jugada: se aplica al cerrar el juego.
+    if (game.on) { pendiente = d; return; }
+    data = d; pendiente = null;
+    var g = d.config;
+    document.documentElement.style.setProperty('--primary', g.primary);
+    document.documentElement.style.setProperty('--accent', g.accent);
+    $('#logo').innerHTML = g.logoUrl ? '<img src="' + esc(g.logoUrl) + '" alt="">' : esc(g.logoText);
+    $('#clock').style.display = g.showClock ? '' : 'none';
+    $('#ticker').style.display = g.tickerEnabled ? '' : 'none';
+    $('#tickerText').textContent = g.tickerText;
+    $('#cta').textContent = g.ctaText;
+    $('#cta').style.display = g.raffleEnabled && d.premios.length >= 2 ? '' : 'none';
+    document.title = g.nombre;
+    nextAd(true);
+  }
+  setInterval(function () { $('#clock').textContent = new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }); }, 1000);
+
+  /* ---------- Anuncios ---------- */
+  var idx = -1, adTimer;
+  function activos() {
+    var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return data.anuncios.filter(function (a) { return a.activo !== false && (!a.desde || a.desde <= t) && (!a.hasta || a.hasta >= t); });
+  }
+  function buildSlide(a) {
+    var el = document.createElement('div'); el.className = 'slide';
+    if (a.tipo === 'imagen') {
+      el.innerHTML = '<img src="' + esc(a.src) + '" alt="">' + (a.titulo ? '<div class="cap">' + esc(a.titulo) + '</div>' : '');
+      el.querySelector('img').onerror = function () { nextAd(); };
+    } else if (a.tipo === 'video') {
+      el.innerHTML = '<video src="' + esc(a.src) + '" muted autoplay playsinline></video>';
+      var v = el.querySelector('video'); v.onended = function () { nextAd(); }; v.onerror = function () { nextAd(); };
+    } else {
+      el.style.background = 'linear-gradient(160deg,' + a.color + ',#000 140%)';
+      el.innerHTML = '<h1>' + esc(a.titulo) + '</h1>' + (a.subtitulo ? '<h2>' + esc(a.subtitulo) + '</h2>' : '') + (a.precio ? '<div class="price">' + esc(a.precio) + '</div>' : '');
+    }
+    return el;
+  }
+  function nextAd(restart) {
+    clearTimeout(adTimer);
+    var list = activos(), box = $('#ads');
+    if (!list.length) { box.innerHTML = '<div class="empty">' + esc(data.config.nombre) + '</div>'; adTimer = setTimeout(function () { nextAd(); }, 10000); return; }
+    if (restart) idx = -1;
+    idx = (idx + 1) % list.length;
+    var a = list[idx], old = box.querySelectorAll('.slide,.empty'), el = buildSlide(a);
+    box.appendChild(el); void el.offsetWidth; el.classList.add('in');
+    old.forEach(function (o) { o.classList.remove('in'); setTimeout(function () { o.remove(); }, 900); });
+    if (a.tipo === 'video' && !(a.duracion > 0)) adTimer = setTimeout(function () { nextAd(); }, 180000);
+    else adTimer = setTimeout(function () { nextAd(); }, Math.max(2, a.duracion || 8) * 1000);
+  }
+
+  /* ---------- Juego ---------- */
+  var game = { on: false, idleT: null, data: { name: '', phone: '' }, focus: null, rot: 0, spinning: false };
+  function resetIdle() {
+    clearTimeout(game.idleT);
+    if (game.on && !game.spinning) game.idleT = setTimeout(closeGame, data.config.idleSeconds * 1000);
+  }
+  addEventListener('pointerdown', resetIdle);
+  function openGame() { game.on = true; game.data = { name: '', phone: '' }; $('#game').classList.add('on'); renderForm(); resetIdle(); }
+  function closeGame() {
+    game.on = false; game.spinning = false; clearTimeout(game.idleT);
+    $('#game').classList.remove('on'); $('#result').classList.remove('on'); hideKb();
+    if (pendiente) aplicarContenido(pendiente);
+  }
+  $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = closeGame;
+
+  /* Acceso al panel: 5 toques sobre el logo */
+  var taps = 0, tapT;
+  $('#logo').addEventListener('pointerdown', function () { taps++; clearTimeout(tapT); tapT = setTimeout(function () { taps = 0; }, 2000); if (taps >= 5) location.href = '/'; });
+
+  function renderForm(msg) {
+    var c = data.config, body = $('#gameBody');
+    body.innerHTML = '<h1>' + esc(c.raffleTitle) + '</h1><div class="sub">' + esc(c.raffleSubtitle) + '</div>' +
+      (c.askName ? '<div class="field"><label>Nombre</label><div class="inp" data-f="name"></div></div>' : '') +
+      (c.askPhone ? '<div class="field"><label>Teléfono</label><div class="inp" data-f="phone"></div></div>' : '') +
+      '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn" id="go">CONTINUAR</button>';
+    body.querySelectorAll('.inp').forEach(function (i) { i.onclick = function () { focusField(i.dataset.f); }; });
+    $('#go').onclick = submitForm;
+    if (c.askName) focusField('name'); else if (c.askPhone) focusField('phone');
+    paintFields();
+    if (!c.askName && !c.askPhone) renderWheel();
+  }
+  function paintFields() {
+    document.querySelectorAll('.inp').forEach(function (i) { i.textContent = game.data[i.dataset.f]; i.classList.toggle('focus', game.focus === i.dataset.f); });
+  }
+  function err(m) { var e = $('#err'); if (e) e.textContent = m; }
+  function submitForm() {
+    var c = data.config, d = game.data;
+    if (c.askName && d.name.trim().length < 2) return err('Ingresá tu nombre');
+    if (c.askPhone && d.phone.replace(/\D/g, '').length < 7) return err('Ingresá un teléfono válido');
+    hideKb(); renderWheel();
+  }
+
+  var ROWS = { alpha: ['qwertyuiop', 'asdfghjklñ', 'zxcvbnm'], num: ['123', '456', '789', '0'] };
+  function focusField(f) { game.focus = f; paintFields(); showKb(f === 'phone' ? 'num' : 'alpha'); }
+  function showKb(mode) {
+    var kb = $('#kb'); kb.className = 'on';
+    kb.innerHTML = ROWS[mode].map(function (r) { return '<div class="row">' + r.split('').map(function (c) { return '<button class="k" data-k="' + c + '">' + c + '</button>'; }).join('') + '</div>'; }).join('') +
+      '<div class="row">' + (mode === 'alpha' ? '<button class="k w" data-k=" ">espacio</button>' : '') + '<button class="k" data-k="⌫">⌫</button><button class="k ok" data-k="ok">OK</button></div>';
+    kb.onclick = function (e) {
+      var k = e.target.dataset && e.target.dataset.k; if (k == null) return;
+      var v = game.data[game.focus === 'phone' ? 'phone' : 'name'];
+      if (k === '⌫') v = v.slice(0, -1);
+      else if (k === 'ok') { if (game.focus === 'name' && data.config.askPhone) return focusField('phone'); return hideKb(); }
+      else if (v.length < 30) v += (game.focus === 'name' && (!v || v.slice(-1) === ' ') ? k.toUpperCase() : k);
+      game.data[game.focus === 'phone' ? 'phone' : 'name'] = v; paintFields();
+    };
+  }
+  function hideKb() { $('#kb').className = ''; game.focus = null; paintFields(); }
+
+  /* ---------- Ruleta ---------- */
+  function renderWheel() {
+    var n = (game.data.name || '').split(' ')[0];
+    $('#gameBody').innerHTML = '<h1>' + esc(data.config.raffleTitle) + '</h1><div class="sub">¡Mucha suerte' + (n ? ', ' + esc(n) : '') + '!</div>' +
+      '<div id="wheelWrap"><div id="pointer"></div><canvas id="wheel" width="880" height="880"></canvas><div id="hub">GIRAR</div></div>' +
+      '<div class="err" id="err"></div><button class="btn" id="spin">¡GIRAR!</button>';
+    game.rot = 0; drawWheel(); $('#spin').onclick = $('#hub').onclick = spin;
+  }
+  function wrap(t, max) { var w = t.split(' '), out = [], l = ''; w.forEach(function (s) { if ((l + ' ' + s).trim().length > max) { out.push(l); l = s; } else l = (l + ' ' + s).trim(); }); if (l) out.push(l); return out; }
+  function drawWheel() {
+    var c = $('#wheel'), x = c.getContext('2d'), P = data.premios, n = P.length, seg = 2 * Math.PI / n, R = 440;
+    x.clearRect(0, 0, 880, 880);
+    P.forEach(function (p, i) {
+      var a0 = -Math.PI / 2 + i * seg;
+      x.beginPath(); x.moveTo(R, R); x.arc(R, R, R, a0, a0 + seg); x.closePath();
+      x.fillStyle = p.color; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 4; x.stroke();
+      x.save(); x.translate(R, R); x.rotate(a0 + seg / 2); x.textAlign = 'right'; x.fillStyle = '#fff';
+      x.font = 'bold 44px Segoe UI, Roboto, sans-serif'; x.shadowColor = '#0008'; x.shadowBlur = 6;
+      var ls = wrap(p.etiqueta, 18);
+      ls.forEach(function (l, j) { x.fillText(l, R - 40, 16 + (j - (ls.length - 1) / 2) * 48); });
+      x.restore();
+    });
+  }
+  function spin() {
+    if (game.spinning) return;
+    game.spinning = true; clearTimeout(game.idleT);
+    var b = $('#spin'); b.disabled = true; err('');
+    api('girar', { nombre: game.data.name, telefono: game.data.phone }).then(function (r) {
+      var i = data.premios.findIndex(function (p) { return p.id === r.premioId; });
+      if (i < 0) i = 0;
+      var seg = 360 / data.premios.length, center = (i + .5) * seg, jitter = (Math.random() - .5) * seg * .7;
+      game.rot = 360 * 7 + (360 - center + jitter);
+      $('#wheel').style.transform = 'rotate(' + game.rot + 'deg)';
+      setTimeout(function () { finish(r); }, 6300);
+    }).catch(function (e) {
+      game.spinning = false; resetIdle();
+      renderForm(e.message);
+    });
+  }
+  function finish(r) {
+    game.spinning = false;
+    var win = r.gano;
+    $('#result .card').innerHTML = '<div class="emoji">' + (win ? '🎉' : '🙂') + '</div><h2>' + (win ? '¡Ganaste!' : esc(data.config.loseMessage)) + '</h2><p>' +
+      (win ? esc(r.etiqueta) + '<br><br>Presentá tu nombre en caja para retirarlo.' : 'Seguí participando en tu próxima visita.') + '</p>';
+    $('#result').classList.add('on'); if (win) confetti();
+    clearTimeout(game.idleT); game.idleT = setTimeout(closeGame, 9000);
+  }
+  function confetti() {
+    var cols = ['#f59e0b', '#22c55e', '#ec4899', '#3b82f6', '#fff'];
+    for (var k = 0; k < 90; k++) {
+      var d = document.createElement('div'); d.className = 'conf';
+      d.style.cssText = 'left:' + Math.random() * 100 + '%;background:' + cols[k % 5] + ';animation-duration:' + (2 + Math.random() * 2.5) + 's;animation-delay:' + Math.random() + 's';
+      stage.appendChild(d); (function (e) { setTimeout(function () { e.remove(); }, 6000); })(d);
+    }
+  }
+
+  /* ---------- Pantalla completa y que no se apague ---------- */
+  var wl = null;
+  function mantenerEncendida() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wl = l; }).catch(function () {}); } catch (e) {} }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { mantenerEncendida(); revisar(); } });
+  addEventListener('pointerdown', function () {
+    var enMarco = window.top !== window.self;
+    if (!enMarco && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
+  }, { once: true });
+  mantenerEncendida();
+
+  /* ---------- Service worker (modo sin conexión) ---------- */
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/totem/sw.js', { scope: '/totem/' }).catch(function () {});
+
+  /* ---------- Inicio ---------- */
+  var c0 = leerCache();
+  if (c0) aplicarContenido(c0); else aplicarContenido(DEF);
+  descargar();
+  setInterval(revisar, REV_INTERVALO);
+})();

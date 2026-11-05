@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/totem/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<title>Totem</title>
+<style>
+  :root { --primary:#1d4ed8; --accent:#f59e0b; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html,body { width:100%; height:100%; background:#000; overflow:hidden; font-family:'Segoe UI',system-ui,Roboto,sans-serif; color:#fff; touch-action:manipulation; overscroll-behavior:none; }
+  #stage { position:absolute; left:50%; top:50%; width:1080px; height:1920px; transform-origin:center; overflow:hidden; background:#0b1020; }
+
+  #top { position:absolute; top:0; left:0; right:0; height:110px; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:0 48px; background:linear-gradient(#000a,#0000); }
+  #logo { font-size:44px; font-weight:800; letter-spacing:3px; display:flex; align-items:center; }
+  #logo img { height:64px; }
+  #clock { font-size:44px; font-weight:600; opacity:.9; font-variant-numeric:tabular-nums; }
+
+  #ads { position:absolute; inset:0; }
+  .slide { position:absolute; inset:0; opacity:0; transition:opacity .8s; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:120px 80px 340px; }
+  .slide.in { opacity:1; }
+  .slide img, .slide video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .slide .cap { position:absolute; left:0; right:0; bottom:300px; padding:40px 60px; background:linear-gradient(#0000,#000b); font-size:60px; font-weight:800; }
+  .slide h1 { font-size:150px; line-height:1.05; font-weight:900; text-shadow:0 6px 30px #0006; overflow-wrap:anywhere; }
+  .slide h2 { font-size:64px; font-weight:500; margin-top:40px; opacity:.95; }
+  .slide .price { margin-top:70px; font-size:110px; font-weight:900; background:var(--accent); color:#111; padding:10px 60px; border-radius:30px; }
+  .empty { position:absolute; inset:0; display:grid; place-items:center; font-size:56px; opacity:.5; text-align:center; padding:80px; }
+
+  #ticker { position:absolute; left:0; right:0; bottom:0; height:90px; background:#000d; z-index:20; overflow:hidden; display:flex; align-items:center; }
+  #ticker span { white-space:nowrap; font-size:40px; padding-left:100%; animation:tick 40s linear infinite; }
+  @keyframes tick { to { transform:translateX(-100%); } }
+  #cta { position:absolute; left:80px; right:80px; bottom:150px; height:150px; z-index:20; border:0; border-radius:80px; font-size:54px; font-weight:900; color:#111; background:var(--accent); box-shadow:0 10px 40px #0008; animation:pulse 1.6s infinite; cursor:pointer; }
+  @keyframes pulse { 50% { transform:scale(1.04); } }
+  #offline { position:absolute; top:120px; left:50%; transform:translateX(-50%); z-index:25; background:#b91c1c; padding:8px 28px; border-radius:30px; font-size:28px; display:none; }
+
+  #game { position:absolute; inset:0; z-index:30; background:radial-gradient(circle at 50% 30%, color-mix(in srgb,var(--primary) 70%,#000), #070a16 75%); display:none; flex-direction:column; align-items:center; padding:140px 60px 60px; }
+  #game.on { display:flex; }
+  #game h1 { font-size:96px; font-weight:900; text-align:center; }
+  #game .sub { font-size:46px; opacity:.85; margin:16px 0 40px; text-align:center; }
+  .close { position:absolute; top:30px; right:40px; font-size:60px; width:100px; height:100px; border-radius:50%; background:#fff2; border:0; color:#fff; z-index:5; }
+  .field { width:860px; margin:12px 0; }
+  .field label { font-size:36px; opacity:.8; display:block; margin-bottom:8px; }
+  .field .inp { width:100%; height:110px; border-radius:24px; background:#fff; color:#111; font-size:56px; display:flex; align-items:center; padding:0 30px; border:6px solid transparent; overflow:hidden; white-space:nowrap; }
+  .field .inp.focus { border-color:var(--accent); }
+  .btn { margin-top:30px; height:130px; padding:0 100px; border:0; border-radius:70px; background:var(--accent); color:#111; font-size:58px; font-weight:900; cursor:pointer; }
+  .btn:disabled { opacity:.4; }
+  .err { color:#fca5a5; font-size:38px; margin-top:16px; min-height:46px; text-align:center; }
+
+  #kb { position:absolute; left:0; right:0; bottom:0; padding:20px 20px 30px; background:#0f172aee; display:none; flex-direction:column; gap:12px; z-index:6; }
+  #kb.on { display:flex; }
+  #kb .row { display:flex; gap:10px; justify-content:center; }
+  #kb .k { flex:1; max-width:92px; height:110px; border:0; border-radius:16px; background:#334155; color:#fff; font-size:50px; font-weight:600; }
+  #kb .k.w { max-width:260px; flex:2; } #kb .k.ok { background:var(--accent); color:#111; max-width:300px; flex:3; }
+
+  #wheelWrap { position:relative; width:880px; height:880px; margin-top:10px; }
+  #wheel { width:100%; height:100%; border-radius:50%; box-shadow:0 0 0 18px #fff, 0 0 0 30px var(--accent), 0 20px 80px #000a; transition:transform 6s cubic-bezier(.12,.7,.1,1); }
+  #pointer { position:absolute; left:50%; top:-40px; transform:translateX(-50%); width:0; height:0; border-left:44px solid transparent; border-right:44px solid transparent; border-top:100px solid #fff; filter:drop-shadow(0 6px 10px #0009); z-index:3; }
+  #hub { position:absolute; left:50%; top:50%; width:150px; height:150px; margin:-75px; border-radius:50%; background:#fff; box-shadow:0 0 30px #0006; display:grid; place-items:center; font-size:40px; font-weight:900; color:#111; z-index:2; }
+
+  #result { position:absolute; inset:0; z-index:40; background:#000c; display:none; align-items:center; justify-content:center; }
+  #result.on { display:flex; }
+  #result .card { width:880px; padding:70px 50px; border-radius:50px; background:#fff; color:#111; text-align:center; }
+  #result .emoji { font-size:180px; } #result h2 { font-size:80px; margin:20px 0; } #result p { font-size:46px; opacity:.8; }
+  .conf { position:absolute; top:-40px; width:18px; height:30px; z-index:50; animation:fall linear forwards; }
+  @keyframes fall { to { transform:translateY(2000px) rotate(720deg); } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="top"><div id="logo"></div><div id="clock"></div></div>
+  <div id="ads"></div>
+  <div id="offline">Sin conexión</div>
+  <button id="cta"></button>
+  <div id="ticker"><span id="tickerText"></span></div>
+
+  <div id="game">
+    <button class="close" id="closeGame">✕</button>
+    <div id="gameBody" style="display:flex;flex-direction:column;align-items:center;width:100%"></div>
+    <div id="kb"></div>
+  </div>
+  <div id="result"><div class="card"></div></div>
+</div>
+<script src="/totem/env.js"></script>
+<script src="/totem/totem.js"></script>
+</body>
+</html>

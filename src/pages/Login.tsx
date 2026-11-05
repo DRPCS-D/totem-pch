@@ -1,0 +1,106 @@
+import { Loader2, MonitorPlay } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { ErrorBox } from '@/components/ui/estado'
+import { FondoEsfera } from '@/components/ui/fondo-esfera'
+import { Field, Input } from '@/components/ui/field'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { useAuth } from '@/hooks/useAuth'
+import { appsScriptConfigurado } from '@/lib/appsScript'
+import { APP_VERSION } from '@/lib/version'
+
+export default function Login() {
+  const { usuario, signIn } = useAuth()
+  const navigate = useNavigate()
+
+  const [nombre, setNombre] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    if (usuario) navigate('/', { replace: true })
+  }, [usuario, navigate])
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (enviando) return
+    setError(null)
+    setEnviando(true)
+    const { error: err } = await signIn(nombre, password)
+    setEnviando(false)
+    if (err) setError(err)
+    else navigate('/', { replace: true })
+  }
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
+      <FondoEsfera />
+      <div className="absolute right-3 top-3 z-10">
+        <ThemeToggle />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+            <MonitorPlay className="size-7" />
+          </div>
+          <h1 className="text-xl font-semibold text-foreground">Totem PCH</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Ingresa con tu cuenta</p>
+        </div>
+
+        {!appsScriptConfigurado && (
+          <div className="mb-4">
+            <ErrorBox mensaje="Falta configurar VITE_APPS_SCRIPT_URL" />
+          </div>
+        )}
+
+        <form
+          onSubmit={onSubmit}
+          className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-xs"
+        >
+          <Field label="Usuario">
+            <Input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              name="username"
+              autoComplete="username"
+              required
+              autoFocus
+            />
+          </Field>
+
+          <Field label="Contraseña">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              name="password"
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+
+          {error && <ErrorBox mensaje={error} />}
+
+          <Button type="submit" className="w-full" disabled={enviando || !appsScriptConfigurado}>
+            {enviando ? (
+              <>
+                <Loader2 className="animate-spin" /> Ingresando…
+              </>
+            ) : (
+              'Ingresar'
+            )}
+          </Button>
+        </form>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Panel de administración del totem publicitario.
+        </p>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground/70">Desarrollado por DRPCS E.A.S. v{APP_VERSION}</p>
+      </div>
+    </div>
+  )
+}
