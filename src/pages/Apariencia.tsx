@@ -27,7 +27,7 @@ export default function Apariencia() {
   async function onGuardar() {
     setGuardando(true)
     const { error: err } = await guardar({
-      nombre: d.nombre, logoText: d.logoText, primary: d.primary, accent: d.accent, showClock: d.showClock,
+      nombre: d.nombre, logoText: d.logoText, logoUrl: d.logoUrl, primary: d.primary, accent: d.accent, showClock: d.showClock,
       tickerEnabled: d.tickerEnabled, tickerText: d.tickerText, idleSeconds: d.idleSeconds,
     })
     setGuardando(false)
@@ -58,10 +58,13 @@ export default function Apariencia() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nombre del negocio"><Input value={d.nombre} onChange={(e) => set('nombre', e.target.value)} maxLength={60} /></Field>
               <Field label="Texto del logo (barra superior)"><Input value={d.logoText} onChange={(e) => set('logoText', e.target.value)} maxLength={40} /></Field>
-              <Field label="Color principal">
+              <Field label="URL del logo (imagen)" hint="Se muestra en la cabecera blanca del totem. Si queda vacío se usa el texto." className="sm:col-span-2">
+                <Input value={d.logoUrl} onChange={(e) => set('logoUrl', e.target.value)} placeholder="https://…/logo.png" />
+              </Field>
+              <Field label="Color principal (celeste)">
                 <input type="color" value={d.primary} onChange={(e) => set('primary', e.target.value)} className={COLOR} />
               </Field>
-              <Field label="Color de acento (botones)">
+              <Field label="Color de acento (botones, ruleta)">
                 <input type="color" value={d.accent} onChange={(e) => set('accent', e.target.value)} className={COLOR} />
               </Field>
             </div>

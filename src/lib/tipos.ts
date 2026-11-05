@@ -76,11 +76,11 @@ export interface ConfigTotem {
 }
 
 export const CONFIG_DEFECTO: ConfigTotem = {
-  nombre: 'Mi Negocio',
-  logoText: 'MI NEGOCIO',
-  logoUrl: '',
-  primary: '#1d4ed8',
-  accent: '#f59e0b',
+  nombre: 'Patachoca',
+  logoText: 'PATACHOCA',
+  logoUrl: 'https://www.patachoca.com.py/assets/patachoca/images/logo.png',
+  primary: '#008fca',
+  accent: '#d91571',
   showClock: true,
   ctaText: 'TOCA PARA JUGAR Y GANAR',
   tickerEnabled: true,

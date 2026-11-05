@@ -39,11 +39,11 @@ var TIPOS_ANUNCIO = ['texto', 'imagen', 'video'];
 var REVS = ['config', 'anuncios', 'premios', 'participantes', 'usuarios'];
 
 var CONFIG_DEFECTO = {
-  nombre: 'Mi Negocio',
-  logoText: 'MI NEGOCIO',
-  logoUrl: '',
-  primary: '#1d4ed8',
-  accent: '#f59e0b',
+  nombre: 'Patachoca',
+  logoText: 'PATACHOCA',
+  logoUrl: 'https://www.patachoca.com.py/assets/patachoca/images/logo.png',
+  primary: '#008fca',
+  accent: '#d91571',
   showClock: true,
   ctaText: 'TOCA PARA JUGAR Y GANAR',
   tickerEnabled: true,
@@ -694,19 +694,19 @@ function instalar() {
 
   var anu = ss.getSheetByName(SHEET_ANUNCIOS);
   if (anu.getLastRow() < 2) {
-    var ej = [['a1', 'texto', 'CYBER DAY', 'Hasta 14% de descuento en toda la tienda', '', '#1d4ed8', '', 8, true, '', '', 1],
-              ['a2', 'texto', 'Combo Familiar', 'Llevá 2 y pagá 1 solo hoy', '45.000 Gs.', '#be185d', '', 8, true, '', '', 2]];
+    var ej = [['a1', 'texto', 'CYBER DAY', 'Hasta 14% de descuento en toda la tienda', '', '#008fca', '', 8, true, '', '', 1],
+              ['a2', 'texto', 'Combo Familiar', 'Llevá 2 y pagá 1 solo hoy', '45.000 Gs.', '#d91571', '', 8, true, '', '', 2]];
     anu.getRange(2, 1, ej.length, 12).setValues(ej);
     mensaje += 'Anuncios de ejemplo creados. ';
   }
   var pre = ss.getSheetByName(SHEET_PREMIOS);
   if (pre.getLastRow() < 2) {
-    var pr = [['p1', 'Gift Card 50.000', '#f59e0b', 5, 5, true, true],
-              ['p2', 'Sigue intentando', '#475569', 30, -1, false, true],
-              ['p3', '10% de descuento', '#22c55e', 25, -1, true, true],
-              ['p4', 'Sigue intentando', '#334155', 30, -1, false, true],
-              ['p5', 'Café gratis', '#ec4899', 15, 20, true, true],
-              ['p6', 'Premio mayor', '#ef4444', 1, 1, true, true]];
+    var pr = [['p1', 'Gift Card 50.000', '#d91571', 5, 5, true, true],
+              ['p2', 'Sigue intentando', '#0a021c', 30, -1, false, true],
+              ['p3', '10% de descuento', '#008fca', 25, -1, true, true],
+              ['p4', 'Sigue intentando', '#4c5a67', 30, -1, false, true],
+              ['p5', 'Descuento 5%', '#f5a43b', 15, 20, true, true],
+              ['p6', 'Premio mayor', '#d91571', 1, 1, true, true]];
     pre.getRange(2, 1, pr.length, 7).setValues(pr);
     mensaje += 'Premios de ejemplo creados. ';
   }

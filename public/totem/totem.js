@@ -14,7 +14,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   var DEF = {
-    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#1d4ed8', accent: '#f59e0b', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
     anuncios: [], premios: [], rev: ''
   };
   var data = DEF, pendiente = null;
@@ -191,6 +191,11 @@
     game.rot = 0; drawWheel(); $('#spin').onclick = $('#hub').onclick = spin;
   }
   function wrap(t, max) { var w = t.split(' '), out = [], l = ''; w.forEach(function (s) { if ((l + ' ' + s).trim().length > max) { out.push(l); l = s; } else l = (l + ' ' + s).trim(); }); if (l) out.push(l); return out; }
+  function textoSobre(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return '#fff';
+    var n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 170 ? '#0a021c' : '#fff';
+  }
   function drawWheel() {
     var c = $('#wheel'), x = c.getContext('2d'), P = data.premios, n = P.length, seg = 2 * Math.PI / n, R = 440;
     x.clearRect(0, 0, 880, 880);
@@ -198,10 +203,10 @@
       var a0 = -Math.PI / 2 + i * seg;
       x.beginPath(); x.moveTo(R, R); x.arc(R, R, R, a0, a0 + seg); x.closePath();
       x.fillStyle = p.color; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 4; x.stroke();
-      x.save(); x.translate(R, R); x.rotate(a0 + seg / 2); x.textAlign = 'right'; x.fillStyle = '#fff';
-      x.font = 'bold 44px Segoe UI, Roboto, sans-serif'; x.shadowColor = '#0008'; x.shadowBlur = 6;
-      var ls = wrap(p.etiqueta, 18);
-      ls.forEach(function (l, j) { x.fillText(l, R - 40, 16 + (j - (ls.length - 1) / 2) * 48); });
+      x.save(); x.translate(R, R); x.rotate(a0 + seg / 2); x.textAlign = 'right'; var tc = textoSobre(p.color); x.fillStyle = tc;
+      x.font = '600 40px Poppins, Rubik, sans-serif'; x.shadowColor = tc === '#fff' ? '#0006' : 'transparent'; x.shadowBlur = 5;
+      var ls = wrap(p.etiqueta, 12);
+      ls.forEach(function (l, j) { x.fillText(l, R - 44, 14 + (j - (ls.length - 1) / 2) * 46); });
       x.restore();
     });
   }
@@ -230,7 +235,7 @@
     clearTimeout(game.idleT); game.idleT = setTimeout(closeGame, 9000);
   }
   function confetti() {
-    var cols = ['#f59e0b', '#22c55e', '#ec4899', '#3b82f6', '#fff'];
+    var cols = ['#d91571', '#008fca', '#f5a43b', '#0a021c', '#ffffff'];
     for (var k = 0; k < 90; k++) {
       var d = document.createElement('div'); d.className = 'conf';
       d.style.cssText = 'left:' + Math.random() * 100 + '%;background:' + cols[k % 5] + ';animation-duration:' + (2 + Math.random() * 2.5) + 's;animation-delay:' + Math.random() + 's';
@@ -247,6 +252,8 @@
     if (!enMarco && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
   }, { once: true });
   mantenerEncendida();
+  // Al cargar las tipografías de Google, la ruleta se vuelve a dibujar con ellas.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if ($('#wheel')) drawWheel(); });
 
   /* ---------- Service worker (modo sin conexión) ---------- */
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/totem/sw.js', { scope: '/totem/' }).catch(function () {});
