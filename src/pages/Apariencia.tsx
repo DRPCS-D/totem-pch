@@ -28,7 +28,7 @@ export default function Apariencia() {
     setGuardando(true)
     const { error: err } = await guardar({
       nombre: d.nombre, logoText: d.logoText, logoUrl: d.logoUrl, primary: d.primary, accent: d.accent, showClock: d.showClock,
-      tickerEnabled: d.tickerEnabled, tickerText: d.tickerText, idleSeconds: d.idleSeconds,
+      tickerEnabled: d.tickerEnabled, tickerText: d.tickerText, idleSeconds: d.idleSeconds, videoSound: d.videoSound, videoVolume: d.videoVolume,
     })
     setGuardando(false)
     if (err) return toast.error(err)
@@ -82,6 +82,15 @@ export default function Apariencia() {
                   <input type="checkbox" className="size-4 accent-primary" checked={d.tickerEnabled} onChange={(e) => set('tickerEnabled', e.target.checked)} />
                   Mostrar cinta de texto
                 </label>
+              </div>
+              <div className="flex flex-wrap items-end gap-6">
+                <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm text-foreground">
+                  <input type="checkbox" className="size-4 accent-primary" checked={d.videoSound} onChange={(e) => set('videoSound', e.target.checked)} />
+                  Videos con sonido
+                </label>
+                <Field label="Volumen de los videos (0–100)" hint="El navegador puede exigir un toque en la pantalla antes de permitir el sonido.">
+                  <Input type="number" min={0} max={100} className="max-w-32" value={d.videoVolume} onChange={(e) => set('videoVolume', Math.min(100, Math.max(0, Number(e.target.value))))} />
+                </Field>
               </div>
               <Field label="Texto de la cinta"><Textarea value={d.tickerText} onChange={(e) => set('tickerText', e.target.value)} maxLength={400} /></Field>
               <Field label="Segundos de inactividad en el juego" hint="Pasado este tiempo sin tocar, el totem vuelve a los anuncios.">

@@ -66,6 +66,8 @@ export interface ConfigTotem {
   tickerEnabled: boolean
   tickerText: string
   idleSeconds: number
+  videoSound: boolean
+  videoVolume: number
   raffleEnabled: boolean
   raffleTitle: string
   raffleSubtitle: string
@@ -86,6 +88,8 @@ export const CONFIG_DEFECTO: ConfigTotem = {
   tickerEnabled: true,
   tickerText: '¡Bienvenido! · Participá del sorteo y ganá premios increíbles',
   idleSeconds: 45,
+  videoSound: true,
+  videoVolume: 100,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',
   raffleSubtitle: 'Completá tus datos y probá tu suerte',

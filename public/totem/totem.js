@@ -14,7 +14,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   var DEF = {
-    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, videoSound: true, videoVolume: 100, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
     anuncios: [], premios: [], rev: ''
   };
   var data = DEF, pendiente = null;
@@ -113,6 +113,22 @@
     }).catch(function () {});
     ids.reduce(function (p, id) { return p.then(function () { return videoURL(id).catch(function () {}); }); }, Promise.resolve());
   }
+  /* Sonido: se intenta con audio; si el navegador lo bloquea (aún nadie tocó la pantalla) arranca en silencio
+     y se activa con el primer toque. Después de ese toque, los videos siguientes ya suenan solos. */
+  function arrancar(v) {
+    var c = data.config, vol = c.videoVolume == null ? 100 : Math.min(100, Math.max(0, Number(c.videoVolume) || 0));
+    var quiere = c.videoSound !== false && vol > 0;
+    v.volume = vol / 100; v.muted = !quiere;
+    var p = v.play();
+    if (p && p.catch) p.catch(function () {
+      if (!quiere) return;
+      v.muted = true; v.setAttribute('data-sonido', '1');
+      var q = v.play(); if (q && q.catch) q.catch(function () {});
+    });
+  }
+  addEventListener('pointerdown', function () {
+    document.querySelectorAll('video[data-sonido]').forEach(function (v) { v.muted = false; v.removeAttribute('data-sonido'); });
+  }, true);
   function reproductorDrive(el, did, a) {
     // Último recurso (p. ej. el video pesa demasiado): reproductor incrustado de Drive; dura lo configurado.
     if (!el.classList.contains('in')) return;
@@ -129,10 +145,11 @@
       else el.querySelector('img').onerror = function () { if (urls.length === 1) nextAd(); };
     } else if (a.tipo === 'video') {
       var did = driveId(a.src);
-      el.innerHTML = '<video muted autoplay playsinline' + (did ? '' : ' src="' + esc(a.src) + '"') + '></video>';
+      el.innerHTML = '<video playsinline' + (did ? '' : ' src="' + esc(a.src) + '"') + '></video>';
       var v = el.querySelector('video'); v.onended = function () { nextAd(); };
       v.onerror = function () { if (did) reproductorDrive(el, did, a); else nextAd(); };
-      if (did) videoURL(did).then(function (u) { v.src = u; var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }).catch(function () { reproductorDrive(el, did, a); });
+      if (did) videoURL(did).then(function (u) { v.src = u; arrancar(v); }).catch(function () { reproductorDrive(el, did, a); });
+      else arrancar(v);
     } else {
       el.style.background = 'linear-gradient(160deg,' + a.color + ',#000 140%)';
       el.innerHTML = '<h1>' + esc(a.titulo) + '</h1>' + (a.subtitulo ? '<h2>' + esc(a.subtitulo) + '</h2>' : '') + (a.precio ? '<div class="price">' + esc(a.precio) + '</div>' : '');
