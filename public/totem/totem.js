@@ -75,6 +75,11 @@
     var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     return data.anuncios.filter(function (a) { return a.activo !== false && (!a.desde || a.desde <= t) && (!a.hasta || a.hasta >= t); });
   }
+  /* Enlaces de Google Drive (compartir > «Cualquier persona con el enlace») -> id del archivo */
+  function driveId(u) {
+    var m = /(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]{10,})/.exec(String(u || ''));
+    return m ? m[1] : null;
+  }
   function buildSlide(a) {
     var el = document.createElement('div'); el.className = 'slide';
     if (a.tipo === 'imagen') {
@@ -84,8 +89,16 @@
       if (!urls.length) setTimeout(function () { nextAd(); }, 0);
       else el.querySelector('img').onerror = function () { if (urls.length === 1) nextAd(); };
     } else if (a.tipo === 'video') {
-      el.innerHTML = '<video src="' + esc(a.src) + '" muted autoplay playsinline></video>';
-      var v = el.querySelector('video'); v.onended = function () { nextAd(); }; v.onerror = function () { nextAd(); };
+      var did = driveId(a.src);
+      var vsrc = did ? 'https://drive.usercontent.google.com/download?id=' + did + '&export=download&confirm=t' : a.src;
+      el.innerHTML = '<video src="' + esc(vsrc) + '" muted autoplay playsinline></video>';
+      var v = el.querySelector('video'); v.onended = function () { nextAd(); };
+      v.onerror = function () {
+        if (!did || !el.classList.contains('in')) { nextAd(); return; }
+        // Drive no entregó el archivo directo: se usa su reproductor incrustado (sin aviso de fin: dura lo configurado).
+        el.innerHTML = '<iframe src="https://drive.google.com/file/d/' + did + '/preview" allow="autoplay" style="position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none"></iframe>';
+        clearTimeout(adTimer); adTimer = setTimeout(function () { nextAd(); }, (a.duracion > 0 ? a.duracion : 60) * 1000);
+      };
     } else {
       el.style.background = 'linear-gradient(160deg,' + a.color + ',#000 140%)';
       el.innerHTML = '<h1>' + esc(a.titulo) + '</h1>' + (a.subtitulo ? '<h2>' + esc(a.subtitulo) + '</h2>' : '') + (a.precio ? '<div class="price">' + esc(a.precio) + '</div>' : '');

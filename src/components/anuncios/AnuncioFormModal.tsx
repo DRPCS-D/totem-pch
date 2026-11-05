@@ -158,8 +158,8 @@ export function AnuncioFormModal({
         )}
 
         {d.tipo === 'video' && (
-          <Field label="URL del video (.mp4) *" hint="Enlace directo a un archivo de video que permita reproducirse desde otro sitio.">
-            <Input value={d.src} onChange={(e) => set('src', e.target.value)} placeholder="https://…/video.mp4" />
+          <Field label="Video: enlace de Google Drive o URL de un .mp4 *" hint="En Drive: clic derecho → Compartir → «Cualquier persona con el enlace» → Copiar enlace. Se reproduce sin sonido. Con Drive conviene indicar los segundos por si el video no se puede reproducir directo.">
+            <Input value={d.src} onChange={(e) => set('src', e.target.value)} placeholder="https://drive.google.com/file/d/…/view" />
           </Field>
         )}
 
