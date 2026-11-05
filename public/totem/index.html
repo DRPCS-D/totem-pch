@@ -35,8 +35,9 @@
   #ticker { position:absolute; left:0; right:0; bottom:0; height:90px; background:#000d; z-index:20; overflow:hidden; display:flex; align-items:center; }
   #ticker span { white-space:nowrap; font-size:40px; padding-left:100%; animation:tick 40s linear infinite; }
   @keyframes tick { to { transform:translateX(-100%); } }
-  #cta { position:absolute; left:80px; right:80px; bottom:150px; height:150px; z-index:20; border:0; border-radius:80px; font-size:54px; font-weight:900; color:#111; background:var(--accent); box-shadow:0 10px 40px #0008; animation:pulse 1.6s infinite; cursor:pointer; }
-  @keyframes pulse { 50% { transform:scale(1.04); } }
+  #cta { position:absolute; right:36px; bottom:120px; width:120px; height:120px; z-index:20; border:0; border-radius:50%; background:#ffffff1f; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); display:grid; place-items:center; cursor:pointer; opacity:.55; transition:opacity .3s, transform .15s; }
+  #cta:active { opacity:1; transform:scale(.92); }
+  #cta svg { width:60px; height:60px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   #forzar { position:absolute; top:0; right:0; width:260px; height:130px; z-index:26; }
   #aviso { position:absolute; top:120px; left:50%; transform:translateX(-50%); z-index:27; background:#111c; padding:10px 32px; border-radius:30px; font-size:32px; display:none; }
   #offline { position:absolute; top:120px; left:50%; transform:translateX(-50%); z-index:25; background:#b91c1c; padding:8px 28px; border-radius:30px; font-size:28px; display:none; }
@@ -80,7 +81,9 @@
   <div id="offline">Sin conexión</div>
   <div id="aviso"></div>
   <div id="forzar"></div>
-  <button id="cta"></button>
+  <button id="cta" aria-label="Jugar">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>
+  </button>
   <div id="ticker"><span id="tickerText"></span></div>
 
   <div id="game">

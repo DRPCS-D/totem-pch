@@ -62,7 +62,7 @@
     $('#clock').style.display = g.showClock ? '' : 'none';
     $('#ticker').style.display = g.tickerEnabled ? '' : 'none';
     $('#tickerText').textContent = g.tickerText;
-    $('#cta').textContent = g.ctaText;
+    $('#cta').setAttribute('aria-label', g.ctaText);
     $('#cta').style.display = g.raffleEnabled && d.premios.length >= 2 ? '' : 'none';
     document.title = g.nombre;
     nextAd(true);

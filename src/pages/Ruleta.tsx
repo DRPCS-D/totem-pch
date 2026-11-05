@@ -124,7 +124,6 @@ export default function Ruleta() {
     const { error } = await cfg.guardar({
       raffleEnabled: draft.raffleEnabled, raffleTitle: draft.raffleTitle, raffleSubtitle: draft.raffleSubtitle,
       maxSpins: draft.maxSpins, askName: draft.askName, askPhone: draft.askPhone, loseMessage: draft.loseMessage,
-      ctaText: draft.ctaText,
     })
     setGuardando(false)
     if (error) return toast.error(error)
@@ -146,11 +145,10 @@ export default function Ruleta() {
           <Skeleton className="h-40" />
         ) : (
           <div className="space-y-4">
-            <Check label="Juego habilitado (muestra el botón de jugar en el totem)" valor={draft.raffleEnabled} onCambiar={(v) => set('raffleEnabled', v)} />
+            <Check label="Juego habilitado (muestra un pequeño ícono de regalo en la esquina inferior derecha del totem)" valor={draft.raffleEnabled} onCambiar={(v) => set('raffleEnabled', v)} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título"><Input value={draft.raffleTitle} onChange={(e) => set('raffleTitle', e.target.value)} maxLength={60} /></Field>
               <Field label="Subtítulo"><Input value={draft.raffleSubtitle} onChange={(e) => set('raffleSubtitle', e.target.value)} maxLength={100} /></Field>
-              <Field label="Texto del botón en pantalla"><Input value={draft.ctaText} onChange={(e) => set('ctaText', e.target.value)} maxLength={60} /></Field>
               <Field label="Mensaje cuando no gana"><Input value={draft.loseMessage} onChange={(e) => set('loseMessage', e.target.value)} maxLength={80} /></Field>
               <Field label="Giros máximos por teléfono" hint="0 = ilimitado."><Input type="number" min={0} value={draft.maxSpins} onChange={(e) => set('maxSpins', Number(e.target.value))} /></Field>
             </div>
