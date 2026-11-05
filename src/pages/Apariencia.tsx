@@ -31,7 +31,7 @@ export default function Apariencia() {
       tickerEnabled: d.tickerEnabled, tickerText: d.tickerText, idleSeconds: d.idleSeconds, videoSound: d.videoSound, videoVolume: d.videoVolume,
     })
     setGuardando(false)
-    if (err) return toast.error(err)
+    if (err) return toast.error(err, { duration: 15000 })
     toast.success('Apariencia guardada. El totem lo aplicará en su próxima actualización (cada hora).')
     setSucio(false)
     refetch()

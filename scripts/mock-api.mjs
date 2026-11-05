@@ -49,7 +49,7 @@ function handle(b) {
       return { usuario: user.usuario, nombre: user.nombre, rol: user.rol }
     }
     case 'getRevisions': auth(); return { revisiones: { ...rev } }
-    case 'getConfig': auth(); return { config: [config] }
+    case 'getConfig': { auth(); const c = { ...config }; if (process.env.MOCK_OLD) delete c.showLogo; return { config: [c] } }
     case 'saveConfig': auth(); Object.assign(config, b.config); rev.config++; return {}
     case 'listAnuncios': auth(); return { anuncios }
     case 'createAnuncio': auth(); anuncios.push({ ...b, id: uid(), orden: anuncios.length + 1 }); rev.anuncios++; return {}

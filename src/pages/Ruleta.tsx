@@ -126,7 +126,7 @@ export default function Ruleta() {
       maxSpins: draft.maxSpins, askName: draft.askName, askPhone: draft.askPhone, loseMessage: draft.loseMessage,
     })
     setGuardando(false)
-    if (error) return toast.error(error)
+    if (error) return toast.error(error, { duration: 15000 })
     toast.success('Configuración del sorteo guardada.')
     setSucio(false)
     cfg.refetch()
