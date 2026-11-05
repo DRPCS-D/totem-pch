@@ -79,7 +79,7 @@
     var el = document.createElement('div'); el.className = 'slide';
     if (a.tipo === 'imagen') {
       var urls = String(a.src || '').split('\n').map(function (u) { return u.trim(); }).filter(Boolean);
-      el.innerHTML = urls.map(function (u, i) { return '<img class="ph' + (i === 0 ? ' on' : '') + '" src="' + esc(u) + '" alt="">'; }).join('') + (a.titulo ? '<div class="cap">' + esc(a.titulo) + '</div>' : '');
+      el.innerHTML = urls.map(function (u, i) { return '<div class="ph' + (i === 0 ? ' on' : '') + '"><div class="bgi" style="background-image:url(&quot;' + esc(u) + '&quot;)"></div><img src="' + esc(u) + '" alt=""></div>'; }).join('') + (a.titulo ? '<div class="cap">' + esc(a.titulo) + '</div>' : '');
       el.dataset.n = urls.length;
       if (!urls.length) setTimeout(function () { nextAd(); }, 0);
       else el.querySelector('img').onerror = function () { if (urls.length === 1) nextAd(); };
@@ -103,7 +103,7 @@
     old.forEach(function (o) { o.classList.remove('in'); setTimeout(function () { o.remove(); }, 900); });
     var seg = Math.max(2, a.duracion || 8), n = a.tipo === 'imagen' ? Math.max(1, Number(el.dataset.n) || 1) : 1;
     if (n > 1) {
-      var fotos = el.querySelectorAll('img.ph');
+      var fotos = el.querySelectorAll('.ph');
       for (var k = 1; k < n; k++) (function (k) { galeria.push(setTimeout(function () { fotos.forEach(function (f, j) { f.classList.toggle('on', j === k); }); }, k * seg * 1000)); })(k);
     }
     if (a.tipo === 'video' && !(a.duracion > 0)) adTimer = setTimeout(function () { nextAd(); }, 180000);
