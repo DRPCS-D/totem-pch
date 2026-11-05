@@ -61,6 +61,7 @@ export interface ConfigTotem {
   logoUrl: string
   primary: string
   accent: string
+  showLogo: boolean
   showClock: boolean
   ctaText: string
   tickerEnabled: boolean
@@ -83,6 +84,7 @@ export const CONFIG_DEFECTO: ConfigTotem = {
   logoUrl: 'https://www.patachoca.com.py/assets/patachoca/images/logo.png',
   primary: '#008fca',
   accent: '#d91571',
+  showLogo: true,
   showClock: true,
   ctaText: 'TOCA PARA JUGAR Y GANAR',
   tickerEnabled: true,

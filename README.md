@@ -50,7 +50,7 @@ En Vercel: importar el repositorio y definir la variable de entorno **`VITE_APPS
 1. Abre Chrome en el equipo y entra a `https://TU-DOMINIO.vercel.app/totem`.
 2. Menú ⋮ → «Instalar app» / «Agregar a la pantalla de inicio». Abre desde el ícono: va a pantalla completa y vertical.
 3. Ajustes de Android recomendados: pantalla siempre encendida, y fijar la app (pinning) o modo kiosco para que los clientes no salgan.
-4. Acceso al panel desde el totem: 5 toques seguidos sobre el logo (pide usuario y contraseña).
+4. Acceso al panel desde el totem: 5 toques seguidos en la esquina superior izquierda, donde va el logo (pide usuario y contraseña).
 
 ## Limitaciones conocidas
 

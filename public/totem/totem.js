@@ -14,7 +14,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   var DEF = {
-    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, videoSound: true, videoVolume: 100, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
     anuncios: [], premios: [], rev: ''
   };
   var data = DEF, pendiente = null;
@@ -58,9 +58,11 @@
     var g = d.config;
     document.documentElement.style.setProperty('--primary', g.primary);
     document.documentElement.style.setProperty('--accent', g.accent);
-    $('#logo').innerHTML = g.logoUrl ? '<img src="' + esc(g.logoUrl) + '" alt="">' : esc(g.logoText);
+    var verLogo = g.showLogo !== false;
+    $('#logo').innerHTML = verLogo ? (g.logoUrl ? '<img src="' + esc(g.logoUrl) + '" alt="">' : esc(g.logoText)) : '';
     $('#clock').style.display = g.showClock ? '' : 'none';
-    $('#ticker').style.display = g.tickerEnabled ? '' : 'none';
+    stage.classList.toggle('sin-cabecera', !verLogo && !g.showClock);
+    stage.classList.toggle('sin-cinta', !g.tickerEnabled);
     $('#tickerText').textContent = g.tickerText;
     $('#cta').setAttribute('aria-label', g.ctaText);
     $('#cta').style.display = g.raffleEnabled && d.premios.length >= 2 ? '' : 'none';
@@ -189,9 +191,9 @@
   }
   $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = closeGame;
 
-  /* Acceso al panel: 5 toques sobre el logo */
+  /* Acceso al panel: 5 toques en la esquina superior izquierda (zona invisible, donde va el logo) */
   var taps = 0, tapT;
-  $('#logo').addEventListener('pointerdown', function () { taps++; clearTimeout(tapT); tapT = setTimeout(function () { taps = 0; }, 2000); if (taps >= 5) location.href = '/'; });
+  $('#acceso').addEventListener('pointerdown', function () { taps++; clearTimeout(tapT); tapT = setTimeout(function () { taps = 0; }, 2000); if (taps >= 5) location.href = '/'; });
 
   function renderForm(msg) {
     var c = data.config, body = $('#gameBody');

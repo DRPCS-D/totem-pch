@@ -27,7 +27,7 @@ export default function Apariencia() {
   async function onGuardar() {
     setGuardando(true)
     const { error: err } = await guardar({
-      nombre: d.nombre, logoText: d.logoText, logoUrl: d.logoUrl, primary: d.primary, accent: d.accent, showClock: d.showClock,
+      nombre: d.nombre, logoText: d.logoText, logoUrl: d.logoUrl, primary: d.primary, accent: d.accent, showLogo: d.showLogo, showClock: d.showClock,
       tickerEnabled: d.tickerEnabled, tickerText: d.tickerText, idleSeconds: d.idleSeconds, videoSound: d.videoSound, videoVolume: d.videoVolume,
     })
     setGuardando(false)
@@ -75,6 +75,10 @@ export default function Apariencia() {
             <div className="space-y-4">
               <div className="flex flex-wrap gap-6">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+                  <input type="checkbox" className="size-4 accent-primary" checked={d.showLogo} onChange={(e) => set('showLogo', e.target.checked)} />
+                  Mostrar logo (identidad)
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input type="checkbox" className="size-4 accent-primary" checked={d.showClock} onChange={(e) => set('showClock', e.target.checked)} />
                   Mostrar reloj
                 </label>
@@ -92,6 +96,9 @@ export default function Apariencia() {
                   <Input type="number" min={0} max={100} className="max-w-32" value={d.videoVolume} onChange={(e) => set('videoVolume', Math.min(100, Math.max(0, Number(e.target.value))))} />
                 </Field>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Si desactivas logo y reloj se oculta la cabecera; si desactivas la cinta se oculta la barra inferior. El contenido ocupa el espacio liberado (con todo desactivado, ocupa toda la pantalla).
+              </p>
               <Field label="Texto de la cinta"><Textarea value={d.tickerText} onChange={(e) => set('tickerText', e.target.value)} maxLength={400} /></Field>
               <Field label="Segundos de inactividad en el juego" hint="Pasado este tiempo sin tocar, el totem vuelve a los anuncios.">
                 <Input type="number" min={10} className="max-w-40" value={d.idleSeconds} onChange={(e) => set('idleSeconds', Number(e.target.value))} />

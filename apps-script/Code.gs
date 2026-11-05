@@ -44,6 +44,7 @@ var CONFIG_DEFECTO = {
   logoUrl: 'https://www.patachoca.com.py/assets/patachoca/images/logo.png',
   primary: '#008fca',
   accent: '#d91571',
+  showLogo: true,
   showClock: true,
   ctaText: 'TOCA PARA JUGAR Y GANAR',
   tickerEnabled: true,
