@@ -193,7 +193,7 @@
   }
   function openGame() { game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' }; $('#game').classList.add('on'); renderForm(); resetIdle(); }
   function closeGame() {
-    game.on = false; game.spinning = false; clearTimeout(game.idleT);
+    game.on = false; game.spinning = false; clearTimeout(game.idleT); $('#closeGame').style.visibility = '';
     $('#game').classList.remove('on'); $('#result').classList.remove('on'); hideKb();
     if (pendiente) aplicarContenido(pendiente); else nextAd();   // sigue con el siguiente anuncio
   }
@@ -288,7 +288,7 @@
      (puede tardar 1-3 s); cuando llega, frena suavemente hasta el premio. */
   function spin() {
     if (game.spinning) return;
-    game.spinning = true; clearTimeout(game.idleT);
+    game.spinning = true; clearTimeout(game.idleT); $('#closeGame').style.visibility = 'hidden';
     $('#spin').disabled = true; err('');
     var w = $('#wheel'), ang = game.rot % 360, vel = 0, t0 = null, esperando = true, raf = 0;
     w.style.transition = 'none';
@@ -315,12 +315,12 @@
       setTimeout(function () { finish(r); }, 5300);
     }).catch(function (e) {
       esperando = false; cancelAnimationFrame(raf);
-      game.spinning = false; resetIdle();
+      game.spinning = false; $('#closeGame').style.visibility = ''; resetIdle();
       renderForm(e.message);
     });
   }
   function finish(r) {
-    game.spinning = false;
+    game.spinning = false; $('#closeGame').style.visibility = '';
     var win = r.gano;
     $('#result .card').innerHTML = '<div class="emoji">' + (win ? '🎉' : '🙂') + '</div><h2>' + (win ? '¡Ganaste!' : esc(data.config.loseMessage)) + '</h2><p>' +
       (win ? esc(r.etiqueta) + '<br><br>Presentá tu nombre en caja para retirarlo.' : 'Seguí participando en tu próxima visita.') + '</p>';
