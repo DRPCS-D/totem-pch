@@ -118,6 +118,7 @@
   /* Sonido: se intenta con audio; si el navegador lo bloquea (aún nadie tocó la pantalla) arranca en silencio
      y se activa con el primer toque. Después de ese toque, los videos siguientes ya suenan solos. */
   function arrancar(v) {
+    if (game.on) return;   // un video que terminó de bajar durante el juego no debe sonar de fondo
     var c = data.config, vol = c.videoVolume == null ? 100 : Math.min(100, Math.max(0, Number(c.videoVolume) || 0));
     var quiere = c.videoSound !== false && vol > 0;
     v.volume = vol / 100; v.muted = !quiere;
@@ -159,6 +160,7 @@
     return el;
   }
   function nextAd(restart) {
+    if (game.on) return;   // con el juego abierto los anuncios están en pausa
     clearTimeout(adTimer); galeria.forEach(clearTimeout); galeria = [];
     var list = activos(), box = $('#ads');
     if (!list.length) { box.innerHTML = '<div class="empty">' + esc(data.config.nombre) + '</div>'; adTimer = setTimeout(function () { nextAd(); }, 10000); return; }
@@ -183,11 +185,17 @@
     if (game.on && !game.spinning) game.idleT = setTimeout(closeGame, data.config.idleSeconds * 1000);
   }
   addEventListener('pointerdown', resetIdle);
-  function openGame() { game.on = true; game.data = { name: '', phone: '' }; $('#game').classList.add('on'); renderForm(); resetIdle(); }
+  /* Mientras se juega, los anuncios se pausan (no suena ni se consume nada de fondo); al cerrar el juego continúan. */
+  function pausarAnuncios() {
+    clearTimeout(adTimer); galeria.forEach(clearTimeout); galeria = [];
+    document.querySelectorAll('#ads video').forEach(function (v) { v.pause(); });
+    document.querySelectorAll('#ads iframe').forEach(function (f) { f.remove(); });   // reproductor de Drive: no se puede pausar, se quita
+  }
+  function openGame() { game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' }; $('#game').classList.add('on'); renderForm(); resetIdle(); }
   function closeGame() {
     game.on = false; game.spinning = false; clearTimeout(game.idleT);
     $('#game').classList.remove('on'); $('#result').classList.remove('on'); hideKb();
-    if (pendiente) aplicarContenido(pendiente);
+    if (pendiente) aplicarContenido(pendiente); else nextAd();   // sigue con el siguiente anuncio
   }
   $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = closeGame;
 
