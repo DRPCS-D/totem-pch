@@ -11,7 +11,7 @@ import { imagenesDe, subirImagen, unirImagenes } from '@/lib/imagen'
 import { TIPO_ANUNCIO_LABEL, type Anuncio, type TipoAnuncio } from '@/lib/tipos'
 
 const VACIO: DatosAnuncio = {
-  tipo: 'texto', titulo: '', subtitulo: '', precio: '', color: '#1d4ed8', src: '',
+  nombre: '', tipo: 'texto', titulo: '', subtitulo: '', precio: '', color: '#1d4ed8', src: '',
   duracion: 8, activo: true, desde: '', hasta: '',
 }
 
@@ -34,7 +34,7 @@ export function AnuncioFormModal({
 
   useEffect(() => {
     if (!abierto) return
-    setD(anuncio ? { ...anuncio } : VACIO)
+    setD(anuncio ? { ...anuncio, nombre: anuncio.nombre ?? '' } : VACIO)
     setError(null)
   }, [abierto, anuncio])
 
@@ -66,6 +66,7 @@ export function AnuncioFormModal({
   }
 
   async function onGuardar() {
+    if (!d.nombre.trim()) return setError('Ponle un nombre al anuncio para identificarlo en la lista.')
     setGuardando(true)
     setError(null)
     const { id: _id, orden: _orden, ...datos } = { id: '', orden: 0, ...d }
@@ -97,6 +98,9 @@ export function AnuncioFormModal({
       }
     >
       <div className="space-y-4">
+        <Field label="Nombre del anuncio *" hint="Solo para identificarlo en este panel; no se muestra en el totem. Ej.: «Promo zapatillas noviembre».">
+          <Input value={d.nombre} onChange={(e) => set('nombre', e.target.value)} maxLength={80} autoFocus />
+        </Field>
         <Field label="Tipo">
           <Select value={d.tipo} onChange={(e) => set('tipo', e.target.value as TipoAnuncio)} disabled={!!anuncio}>
             {(Object.keys(TIPO_ANUNCIO_LABEL) as TipoAnuncio[]).map((t) => (
@@ -107,7 +111,7 @@ export function AnuncioFormModal({
 
         {d.tipo === 'texto' && (
           <>
-            <Field label="Título *"><Input value={d.titulo} onChange={(e) => set('titulo', e.target.value)} maxLength={120} autoFocus /></Field>
+            <Field label="Título *"><Input value={d.titulo} onChange={(e) => set('titulo', e.target.value)} maxLength={120} /></Field>
             <Field label="Subtítulo"><Input value={d.subtitulo} onChange={(e) => set('subtitulo', e.target.value)} maxLength={200} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Precio / etiqueta" hint="Ej.: 45.000 Gs."><Input value={d.precio} onChange={(e) => set('precio', e.target.value)} maxLength={40} /></Field>

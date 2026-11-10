@@ -10,8 +10,8 @@ const config = {
   maxSpins: 1, askName: true, askPhone: true, loseMessage: '¡Gracias por participar!',
 }
 let anuncios = [
-  { id: 'a1', tipo: 'texto', titulo: 'CYBER DAY', subtitulo: 'Hasta 14% de descuento', precio: '', color: '#1d4ed8', src: '', duracion: 5, activo: true, desde: '', hasta: '', orden: 1 },
-  { id: 'a2', tipo: 'texto', titulo: 'Combo Familiar', subtitulo: 'Llevá 2 y pagá 1', precio: '45.000 Gs.', color: '#be185d', src: '', duracion: 5, activo: true, desde: '', hasta: '', orden: 2 },
+  { id: 'a1', nombre: 'Cyber Day', tipo: 'texto', titulo: 'CYBER DAY', subtitulo: 'Hasta 14% de descuento', precio: '', color: '#1d4ed8', src: '', duracion: 5, activo: true, desde: '', hasta: '', orden: 1 },
+  { id: 'a2', nombre: 'Combo familiar', tipo: 'texto', titulo: 'Combo Familiar', subtitulo: 'Llevá 2 y pagá 1', precio: '45.000 Gs.', color: '#be185d', src: '', duracion: 5, activo: true, desde: '', hasta: '', orden: 2 },
 ]
 let premios = [
   { id: 'p1', etiqueta: 'Gift Card 50.000', color: '#f59e0b', peso: 5, stock: 5, gana: true, activo: true },

@@ -13,7 +13,7 @@
  *
  * Pestañas (fila 1 = encabezados):
  *   Config:        clave | valor
- *   Anuncios:      id | tipo | titulo | subtitulo | precio | color | src | duracion | activo | desde | hasta | orden
+ *   Anuncios:      id | tipo | titulo | subtitulo | precio | color | src | duracion | activo | desde | hasta | orden | nombre
  *   Premios:       id | etiqueta | color | peso | stock | gana | activo
  *   Participantes: id | fecha | nombre | telefono | premio | gano | entregado
  *   Usuarios:      usuario | password | rol | activo | nombre
@@ -30,7 +30,7 @@ var SHEET_PREMIOS = 'Premios';
 var SHEET_PARTICIPANTES = 'Participantes';
 var SHEET_USUARIOS = 'Usuarios';
 
-var COL_ANU = { id: 0, tipo: 1, titulo: 2, subtitulo: 3, precio: 4, color: 5, src: 6, duracion: 7, activo: 8, desde: 9, hasta: 10, orden: 11 };
+var COL_ANU = { id: 0, tipo: 1, titulo: 2, subtitulo: 3, precio: 4, color: 5, src: 6, duracion: 7, activo: 8, desde: 9, hasta: 10, orden: 11, nombre: 12 };
 var COL_PRE = { id: 0, etiqueta: 1, color: 2, peso: 3, stock: 4, gana: 5, activo: 6 };
 var COL_PAR = { id: 0, fecha: 1, nombre: 2, telefono: 3, premio: 4, gano: 5, entregado: 6 };
 var COL_USR = { usuario: 0, password: 1, rol: 2, activo: 3, nombre: 4 };
@@ -385,7 +385,8 @@ function rowToAnuncio_(row) {
     activo: esActivo_(row[COL_ANU.activo]),
     desde: fechaTexto_(row[COL_ANU.desde]),
     hasta: fechaTexto_(row[COL_ANU.hasta]),
-    orden: Number(row[COL_ANU.orden]) || 0
+    orden: Number(row[COL_ANU.orden]) || 0,
+    nombre: String(row[COL_ANU.nombre] || '')
   };
 }
 
@@ -417,10 +418,12 @@ function handleSaveAnuncio_(body, crear) {
 
   return conLock_(function () {
     var sheet = getSheet_(SHEET_ANUNCIOS);
+    // Hojas creadas antes de existir la columna «nombre»: se agrega el encabezado sin tener que reinstalar.
+    if (!String(sheet.getRange(1, COL_ANU.nombre + 1).getValue()).trim()) sheet.getRange(1, COL_ANU.nombre + 1).setValue('nombre').setFontWeight('bold').setBackground('#e8eaf6');
     var datos = function (id, orden) {
       return [id, tipo, String(body.titulo || '').slice(0, 120), String(body.subtitulo || '').slice(0, 200),
         String(body.precio || '').slice(0, 40), String(body.color || '#1d4ed8').slice(0, 9), src,
-        Math.max(0, Number(body.duracion) || 0), body.activo !== false, desde, hasta, orden];
+        Math.max(0, Number(body.duracion) || 0), body.activo !== false, desde, hasta, orden, String(body.nombre || '').trim().slice(0, 80)];
     };
     if (crear) {
       var rows = sheet.getDataRange().getValues(), max = 0;
@@ -429,7 +432,7 @@ function handleSaveAnuncio_(body, crear) {
     } else {
       var f = filaPorId_(sheet, COL_ANU.id, body.id);
       if (!f) throw new Error('El anuncio ya no existe.');
-      sheet.getRange(f.indice, 1, 1, 12).setValues([datos(f.valores[COL_ANU.id], f.valores[COL_ANU.orden])]);
+      sheet.getRange(f.indice, 1, 1, 13).setValues([datos(f.valores[COL_ANU.id], f.valores[COL_ANU.orden])]);
     }
     bumpRevision_('anuncios');
     return jsonOut_({ ok: true });
@@ -682,7 +685,7 @@ function handleCambiarMiPassword_(body) {
 
 var ENCABEZADOS = {
   Config: ['clave', 'valor'],
-  Anuncios: ['id', 'tipo', 'titulo', 'subtitulo', 'precio', 'color', 'src', 'duracion', 'activo', 'desde', 'hasta', 'orden'],
+  Anuncios: ['id', 'tipo', 'titulo', 'subtitulo', 'precio', 'color', 'src', 'duracion', 'activo', 'desde', 'hasta', 'orden', 'nombre'],
   Premios: ['id', 'etiqueta', 'color', 'peso', 'stock', 'gana', 'activo'],
   Participantes: ['id', 'fecha', 'nombre', 'telefono', 'premio', 'gano', 'entregado'],
   Usuarios: ['usuario', 'password', 'rol', 'activo', 'nombre']
@@ -721,9 +724,9 @@ function instalar() {
 
   var anu = ss.getSheetByName(SHEET_ANUNCIOS);
   if (anu.getLastRow() < 2) {
-    var ej = [['a1', 'texto', 'CYBER DAY', 'Hasta 14% de descuento en toda la tienda', '', '#008fca', '', 8, true, '', '', 1],
-              ['a2', 'texto', 'Combo Familiar', 'Llevá 2 y pagá 1 solo hoy', '45.000 Gs.', '#d91571', '', 8, true, '', '', 2]];
-    anu.getRange(2, 1, ej.length, 12).setValues(ej);
+    var ej = [['a1', 'texto', 'CYBER DAY', 'Hasta 14% de descuento en toda la tienda', '', '#008fca', '', 8, true, '', '', 1, 'Cyber Day'],
+              ['a2', 'texto', 'Combo Familiar', 'Llevá 2 y pagá 1 solo hoy', '45.000 Gs.', '#d91571', '', 8, true, '', '', 2, 'Combo familiar']];
+    anu.getRange(2, 1, ej.length, 13).setValues(ej);
     mensaje += 'Anuncios de ejemplo creados. ';
   }
   var pre = ss.getSheetByName(SHEET_PREMIOS);

@@ -17,6 +17,8 @@ export const TIPO_ANUNCIO_LABEL: Record<TipoAnuncio, string> = {
 
 export interface Anuncio {
   id: string
+  /** Nombre interno para identificarlo en el panel (no se muestra en el totem). */
+  nombre: string
   tipo: TipoAnuncio
   titulo: string
   subtitulo: string

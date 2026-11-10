@@ -71,6 +71,13 @@ export default function Anuncios() {
         <Button onClick={() => setModal('nuevo')}><Plus /> Nuevo anuncio</Button>
       </div>
 
+      {data.length > 0 && !('nombre' in data[0]) && (
+        <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground">
+          Tu Apps Script está desactualizado y no guarda el nombre de los anuncios. Pega el Code.gs nuevo y publica una nueva versión
+          (Implementar → Administrar implementaciones → editar → Nueva versión).
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28" />)}</div>
       ) : error ? (
@@ -83,7 +90,7 @@ export default function Anuncios() {
             <li key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
               <Miniatura a={a} />
               <button type="button" onClick={() => setModal(a)} className="min-w-0 flex-1 basis-40 text-left">
-                <p className="truncate text-sm font-medium text-foreground">{a.titulo || TIPO_ANUNCIO_LABEL[a.tipo]}</p>
+                <p className="truncate text-sm font-medium text-foreground">{a.nombre || a.titulo || TIPO_ANUNCIO_LABEL[a.tipo]}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {a.tipo === 'imagen' ? `${imagenesDe(a.src).length} imagen(es) × ${a.duracion} s` : `${TIPO_ANUNCIO_LABEL[a.tipo]} · ${a.duracion ? `${a.duracion} s` : 'hasta terminar'}`} · {vigencia(a)}
                 </p>
@@ -114,7 +121,7 @@ export default function Anuncios() {
         titulo="Borrar anuncio"
         textoConfirmar="Borrar"
         procesando={borrando}
-        mensaje={<>¿Borrar <strong>{borrar?.titulo || 'este anuncio'}</strong>? Si solo quieres ocultarlo, usa «Pausar».</>}
+        mensaje={<>¿Borrar <strong>{borrar?.nombre || borrar?.titulo || 'este anuncio'}</strong>? Si solo quieres ocultarlo, usa «Pausar».</>}
         onCancelar={() => setBorrar(null)}
         onConfirmar={async () => {
           if (!borrar) return
