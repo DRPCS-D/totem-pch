@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Film, ImageIcon, Plus, Type } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { AnuncioFormModal } from '@/components/anuncios/AnuncioFormModal'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,7 @@ import { ErrorBox, Vacio } from '@/components/ui/estado'
 import { ConfirmModal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAnuncios } from '@/hooks/useAnuncios'
+import { useForzarActualizacion } from '@/hooks/useTabla'
 import { imagenesDe } from '@/lib/imagen'
 import { TIPO_ANUNCIO_LABEL, type Anuncio } from '@/lib/tipos'
 
@@ -42,6 +43,14 @@ function vigencia(a: Anuncio): string {
 
 export default function Anuncios() {
   const { data, loading, error, refetch, crear, editar, eliminar, reordenar } = useAnuncios()
+  const { forzar } = useForzarActualizacion()
+  const [verificado, setVerificado] = useState(false)
+  // Los datos se guardan en el navegador y solo se vuelven a bajar si cambia el contador de la hoja; publicar un Code.gs
+  // nuevo no lo cambia. Si faltan los campos nuevos se baja todo una vez antes de dar el backend por desactualizado.
+  const sinNombre = data.length > 0 && !('nombre' in data[0])
+  useEffect(() => {
+    if (sinNombre && !verificado) void forzar().finally(() => setVerificado(true))
+  }, [sinNombre, verificado, forzar])
   const [modal, setModal] = useState<'nuevo' | Anuncio | null>(null)
   const [borrar, setBorrar] = useState<Anuncio | null>(null)
   const [borrando, setBorrando] = useState(false)
@@ -71,7 +80,7 @@ export default function Anuncios() {
         <Button onClick={() => setModal('nuevo')}><Plus /> Nuevo anuncio</Button>
       </div>
 
-      {data.length > 0 && !('nombre' in data[0]) && (
+      {sinNombre && verificado && (
         <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground">
           Tu Apps Script está desactualizado y no guarda el nombre de los anuncios. Pega el Code.gs nuevo y publica una nueva versión
           (Implementar → Administrar implementaciones → editar → Nueva versión).
