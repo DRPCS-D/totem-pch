@@ -14,8 +14,9 @@
  * Pestañas (fila 1 = encabezados):
  *   Config:        clave | valor
  *   Anuncios:      id | tipo | titulo | subtitulo | precio | color | src | duracion | activo | desde | hasta | orden | nombre
- *   Premios:       id | etiqueta | color | peso | stock | gana | activo
- *   Participantes: id | fecha | nombre | telefono | premio | gano | entregado
+ *   Ruletas:       id | nombre | activa   (plantillas de premios; solo una activa)
+ *   Premios:       id | etiqueta | color | peso | stock | gana | activo | ruletaId
+ *   Participantes: id | fecha | nombre | telefono | premio | gano | entregado | ruleta
  *   Usuarios:      usuario | password | rol | activo | nombre
  *
  * Roles: admin (todo) | editor (anuncios, ruleta, participantes, apariencia).
@@ -29,14 +30,16 @@ var SHEET_ANUNCIOS = 'Anuncios';
 var SHEET_PREMIOS = 'Premios';
 var SHEET_PARTICIPANTES = 'Participantes';
 var SHEET_USUARIOS = 'Usuarios';
+var SHEET_RULETAS = 'Ruletas';
 
 var COL_ANU = { id: 0, tipo: 1, titulo: 2, subtitulo: 3, precio: 4, color: 5, src: 6, duracion: 7, activo: 8, desde: 9, hasta: 10, orden: 11, nombre: 12 };
-var COL_PRE = { id: 0, etiqueta: 1, color: 2, peso: 3, stock: 4, gana: 5, activo: 6 };
-var COL_PAR = { id: 0, fecha: 1, nombre: 2, telefono: 3, premio: 4, gano: 5, entregado: 6 };
+var COL_PRE = { id: 0, etiqueta: 1, color: 2, peso: 3, stock: 4, gana: 5, activo: 6, ruletaId: 7 };
+var COL_RUL = { id: 0, nombre: 1, activa: 2 };
+var COL_PAR = { id: 0, fecha: 1, nombre: 2, telefono: 3, premio: 4, gano: 5, entregado: 6, ruleta: 7 };
 var COL_USR = { usuario: 0, password: 1, rol: 2, activo: 3, nombre: 4 };
 
 var TIPOS_ANUNCIO = ['texto', 'imagen', 'video'];
-var REVS = ['config', 'anuncios', 'premios', 'participantes', 'usuarios'];
+var REVS = ['config', 'anuncios', 'premios', 'ruletas', 'participantes', 'usuarios'];
 
 var CONFIG_DEFECTO = {
   nombre: 'Patachoca',
@@ -91,6 +94,11 @@ function doPost(e) {
       case 'deleteAnuncio':     return handleDeleteAnuncio_(body);
       case 'reordenarAnuncios': return handleReordenarAnuncios_(body);
       case 'subirImagen':       return handleSubirImagen_(body);
+      case 'listRuletas':       return handleListRuletas_(body);
+      case 'createRuleta':      return handleCreateRuleta_(body);
+      case 'updateRuleta':      return handleUpdateRuleta_(body);
+      case 'deleteRuleta':      return handleDeleteRuleta_(body);
+      case 'activarRuleta':     return handleActivarRuleta_(body);
       case 'listPremios':       return handleListPremios_(body);
       case 'createPremio':      return handleSavePremio_(body, true);
       case 'updatePremio':      return handleSavePremio_(body, false);
@@ -242,7 +250,7 @@ function handleTotemRev_() {
 function handleTotemConfig_() {
   var r = revisionesActuales_();
   var anuncios = leerAnuncios_().filter(function (a) { return a.activo; });
-  var premios = leerPremios_().filter(function (p) { return p.activo; }).map(function (p) {
+  var premios = leerPremios_(ruletaActiva_().id).filter(function (p) { return p.activo; }).map(function (p) {
     return { id: p.id, etiqueta: p.etiqueta, color: p.color, gana: p.gana };
   });
   return jsonOut_({
@@ -297,12 +305,13 @@ function handleGirar_(body) {
       if (usados >= cfg.maxSpins) throw new Error('Este número ya participó. ¡Gracias!');
     }
 
+    var activa = ruletaActiva_();
     var sheetPr = getSheet_(SHEET_PREMIOS);
     var rows = sheetPr.getDataRange().getValues();
     var todos = [];
     for (var j = 1; j < rows.length; j++) {
       var p = rowToPremio_(rows[j]);
-      if (p.id && p.activo) { p.fila = j + 1; todos.push(p); }
+      if (p.id && p.activo && p.ruletaId === activa.id) { p.fila = j + 1; todos.push(p); }
     }
     if (todos.length < 2) throw new Error('El sorteo no está configurado.');
 
@@ -320,7 +329,7 @@ function handleGirar_(body) {
       sheetPr.getRange(elegido.fila, COL_PRE.stock + 1).setValue(elegido.stock - 1);
       bumpRevision_('premios');
     }
-    sheetP.appendRow([Utilities.getUuid().slice(0, 8), new Date().toISOString(), nombre, telefono, elegido.etiqueta, elegido.gana, false]);
+    sheetP.appendRow([Utilities.getUuid().slice(0, 8), new Date().toISOString(), nombre, telefono, elegido.etiqueta, elegido.gana, false, activa.nombre]);
     bumpRevision_('participantes');
     return jsonOut_({ ok: true, premioId: elegido.id, etiqueta: elegido.etiqueta, gano: elegido.gana });
   });
@@ -492,22 +501,28 @@ function rowToPremio_(row) {
     peso: Number(row[COL_PRE.peso]) || 0,
     stock: stock === '' || isNaN(Number(stock)) ? -1 : Number(stock),
     gana: esActivo_(row[COL_PRE.gana]),
-    activo: esActivo_(row[COL_PRE.activo])
+    activo: esActivo_(row[COL_PRE.activo]),
+    ruletaId: String(row[COL_PRE.ruletaId] || '').trim()
   };
 }
 
-function leerPremios_() {
+/** Premios de una ruleta (o de todas si no se indica). */
+function leerPremios_(ruletaId) {
+  asegurarRuletas_();
   var rows = getSheet_(SHEET_PREMIOS).getDataRange().getValues();
   var lista = [];
   for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][COL_PRE.id]).trim()) lista.push(rowToPremio_(rows[i]));
+    if (!String(rows[i][COL_PRE.id]).trim()) continue;
+    var p = rowToPremio_(rows[i]);
+    if (!ruletaId || p.ruletaId === ruletaId) lista.push(p);
   }
   return lista;
 }
 
 function handleListPremios_(body) {
   requireAuth_(body);
-  return jsonOut_({ ok: true, premios: leerPremios_() });
+  var id = String(body.ruletaId || '').trim() || ruletaActiva_().id;
+  return jsonOut_({ ok: true, premios: leerPremios_(id) });
 }
 
 function handleSavePremio_(body, crear) {
@@ -518,16 +533,18 @@ function handleSavePremio_(body, crear) {
   if (isNaN(peso) || peso < 0) throw new Error('El peso debe ser 0 o mayor.');
   var stock = Number(body.stock);
   if (isNaN(stock) || stock < -1) throw new Error('El stock debe ser -1 (ilimitado) o mayor.');
+  var ruletaId = String(body.ruletaId || '').trim();
+  if (crear && !ruletaPorId_(leerRuletas_(), ruletaId)) throw new Error('La ruleta no existe.');
   return conLock_(function () {
     var sheet = getSheet_(SHEET_PREMIOS);
-    var datos = function (id) {
-      return [id, etiqueta, String(body.color || '#3b82f6').slice(0, 9), peso, stock, body.gana !== false, body.activo !== false];
+    var datos = function (id, rid) {
+      return [id, etiqueta, String(body.color || '#3b82f6').slice(0, 9), peso, stock, body.gana !== false, body.activo !== false, rid];
     };
-    if (crear) sheet.appendRow(datos(Utilities.getUuid().slice(0, 8)));
+    if (crear) sheet.appendRow(datos(Utilities.getUuid().slice(0, 8), ruletaId));
     else {
       var f = filaPorId_(sheet, COL_PRE.id, body.id);
       if (!f) throw new Error('El premio ya no existe.');
-      sheet.getRange(f.indice, 1, 1, 7).setValues([datos(f.valores[COL_PRE.id])]);
+      sheet.getRange(f.indice, 1, 1, 8).setValues([datos(f.valores[COL_PRE.id], String(f.valores[COL_PRE.ruletaId] || '').trim())]);
     }
     bumpRevision_('premios');
     return jsonOut_({ ok: true });
@@ -540,10 +557,191 @@ function handleDeletePremio_(body) {
     var sheet = getSheet_(SHEET_PREMIOS);
     var f = filaPorId_(sheet, COL_PRE.id, body.id);
     if (!f) throw new Error('El premio ya no existe.');
-    var activos = leerPremios_().filter(function (p) { return p.activo; }).length;
-    if (activos <= 2 && esActivo_(f.valores[COL_PRE.activo])) throw new Error('La ruleta necesita al menos 2 premios activos.');
+    // Solo la ruleta activa (la que ve el totem) debe conservar al menos 2 premios activos.
+    var rid = String(f.valores[COL_PRE.ruletaId] || '').trim();
+    var activos = leerPremios_(rid).filter(function (p) { return p.activo; }).length;
+    if (rid === ruletaActiva_().id && activos <= 2 && esActivo_(f.valores[COL_PRE.activo])) throw new Error('La ruleta activa necesita al menos 2 premios activos.');
     borrarFila_(sheet, f.indice);
     bumpRevision_('premios');
+    return jsonOut_({ ok: true });
+  });
+}
+
+// ---------- Ruletas (plantillas de premios) ----------
+// Cada ruleta es un conjunto de premios con nombre. Solo una está activa: es la que muestra el totem.
+// Hojas anteriores a las ruletas se migran solas: los premios existentes pasan a «Ruleta principal».
+
+var RULETAS_OK_ = false;
+
+function encabezadoSiFalta_(sheet, col, nombre) {
+  if (!String(sheet.getRange(1, col).getValue()).trim()) {
+    sheet.getRange(1, col).setValue(nombre).setFontWeight('bold').setBackground('#e8eaf6');
+  }
+}
+
+function asegurarRuletas_() {
+  if (RULETAS_OK_) return;
+  var ss = getSpreadsheet_(false);
+  var hoja = ss.getSheetByName(SHEET_RULETAS);
+  if (!hoja) {
+    hoja = ss.insertSheet(SHEET_RULETAS);
+    hoja.getRange(1, 1, 1, 3).setValues([ENCABEZADOS.Ruletas]).setFontWeight('bold').setBackground('#e8eaf6');
+    hoja.setFrozenRows(1);
+    hoja.getRange(2, COL_RUL.activa + 1, 100, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  }
+  var pre = getSheet_(SHEET_PREMIOS);
+  encabezadoSiFalta_(pre, COL_PRE.ruletaId + 1, 'ruletaId');
+  encabezadoSiFalta_(getSheet_(SHEET_PARTICIPANTES), COL_PAR.ruleta + 1, 'ruleta');
+
+  var rows = hoja.getDataRange().getValues(), activaId = '', primeraId = '', primeraFila = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var id = String(rows[i][COL_RUL.id]).trim();
+    if (!id) continue;
+    if (!primeraId) { primeraId = id; primeraFila = i + 1; }
+    if (!activaId && esActivo_(rows[i][COL_RUL.activa])) activaId = id;
+  }
+  if (!primeraId) {
+    primeraId = Utilities.getUuid().slice(0, 8);
+    hoja.appendRow([primeraId, 'Ruleta principal', true]);
+    activaId = primeraId;
+  } else if (!activaId) {
+    hoja.getRange(primeraFila, COL_RUL.activa + 1).setValue(true);
+    activaId = primeraId;
+  }
+
+  // Premios sin ruleta (hoja anterior a las ruletas, o cargados a mano) pasan a la ruleta activa.
+  var n = pre.getLastRow() - 1;
+  if (n > 0) {
+    var rng = pre.getRange(2, 1, n, COL_PRE.ruletaId + 1), vals = rng.getValues(), cambio = false;
+    vals.forEach(function (f) {
+      if (String(f[COL_PRE.id]).trim() && !String(f[COL_PRE.ruletaId]).trim()) { f[COL_PRE.ruletaId] = activaId; cambio = true; }
+    });
+    if (cambio) rng.setValues(vals);
+  }
+  RULETAS_OK_ = true;
+}
+
+/** [{ id, nombre, activa, premios (cantidad de premios activos) }] */
+function leerRuletas_() {
+  asegurarRuletas_();
+  var rows = getSheet_(SHEET_RULETAS).getDataRange().getValues();
+  var premios = leerPremios_();
+  var lista = [];
+  for (var i = 1; i < rows.length; i++) {
+    var id = String(rows[i][COL_RUL.id]).trim();
+    if (!id) continue;
+    lista.push({
+      id: id,
+      nombre: String(rows[i][COL_RUL.nombre] || ''),
+      activa: esActivo_(rows[i][COL_RUL.activa]),
+      premios: premios.filter(function (p) { return p.ruletaId === id && p.activo; }).length
+    });
+  }
+  return lista;
+}
+
+function ruletaActiva_() {
+  var lista = leerRuletas_();
+  for (var i = 0; i < lista.length; i++) if (lista[i].activa) return lista[i];
+  return lista[0];
+}
+
+function ruletaPorId_(lista, id) {
+  for (var i = 0; i < lista.length; i++) if (lista[i].id === String(id || '').trim()) return lista[i];
+  return null;
+}
+
+function nombreRuletaValido_(body, lista, excluirId) {
+  var nombre = String(body.nombre || '').trim().slice(0, 40);
+  if (!nombre) throw new Error('El nombre de la ruleta es obligatorio.');
+  lista.forEach(function (r) {
+    if (r.id !== excluirId && r.nombre.toLowerCase() === nombre.toLowerCase()) throw new Error('Ya existe una ruleta con ese nombre.');
+  });
+  return nombre;
+}
+
+function handleListRuletas_(body) {
+  requireAuth_(body);
+  return jsonOut_({ ok: true, ruletas: leerRuletas_() });
+}
+
+function handleCreateRuleta_(body) {
+  requireAuth_(body);
+  var lista = leerRuletas_();
+  var nombre = nombreRuletaValido_(body, lista, '');
+  var copiarDe = String(body.copiarDe || '').trim();
+  if (copiarDe && !ruletaPorId_(lista, copiarDe)) throw new Error('La ruleta a copiar ya no existe.');
+  return conLock_(function () {
+    var id = Utilities.getUuid().slice(0, 8);
+    getSheet_(SHEET_RULETAS).appendRow([id, nombre, false]);
+    if (copiarDe) {
+      var filas = leerPremios_(copiarDe).map(function (p) {
+        return [Utilities.getUuid().slice(0, 8), p.etiqueta, p.color, p.peso, p.stock, p.gana, p.activo, id];
+      });
+      if (filas.length) {
+        var pre = getSheet_(SHEET_PREMIOS);
+        pre.getRange(pre.getLastRow() + 1, 1, filas.length, 8).setValues(filas);
+        bumpRevision_('premios');
+      }
+    }
+    bumpRevision_('ruletas');
+    return jsonOut_({ ok: true, id: id });
+  });
+}
+
+function handleUpdateRuleta_(body) {
+  requireAuth_(body);
+  var lista = leerRuletas_();
+  var r = ruletaPorId_(lista, body.id);
+  if (!r) throw new Error('La ruleta ya no existe.');
+  var nombre = nombreRuletaValido_(body, lista, r.id);
+  return conLock_(function () {
+    var hoja = getSheet_(SHEET_RULETAS);
+    var f = filaPorId_(hoja, COL_RUL.id, r.id);
+    hoja.getRange(f.indice, COL_RUL.nombre + 1).setValue(nombre);
+    bumpRevision_('ruletas');
+    return jsonOut_({ ok: true });
+  });
+}
+
+function handleDeleteRuleta_(body) {
+  requireAuth_(body);
+  var lista = leerRuletas_();
+  var r = ruletaPorId_(lista, body.id);
+  if (!r) throw new Error('La ruleta ya no existe.');
+  if (r.activa) throw new Error('No puedes borrar la ruleta activa. Activa otra primero.');
+  return conLock_(function () {
+    var pre = getSheet_(SHEET_PREMIOS);
+    var rows = pre.getDataRange().getValues();
+    for (var i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][COL_PRE.ruletaId]).trim() === r.id) borrarFila_(pre, i + 1);
+    }
+    var hoja = getSheet_(SHEET_RULETAS);
+    var f = filaPorId_(hoja, COL_RUL.id, r.id);
+    if (f) borrarFila_(hoja, f.indice);
+    bumpRevision_('ruletas');
+    bumpRevision_('premios');
+    return jsonOut_({ ok: true });
+  });
+}
+
+/** Deja activa solo la ruleta indicada (la que muestra el totem). */
+function handleActivarRuleta_(body) {
+  requireAuth_(body);
+  var lista = leerRuletas_();
+  var r = ruletaPorId_(lista, body.id);
+  if (!r) throw new Error('La ruleta ya no existe.');
+  if (r.premios < 2) throw new Error('La ruleta necesita al menos 2 premios activos para poder usarse.');
+  return conLock_(function () {
+    var hoja = getSheet_(SHEET_RULETAS);
+    var rows = hoja.getDataRange().getValues();
+    if (rows.length > 1) {
+      hoja.getRange(2, COL_RUL.activa + 1, rows.length - 1, 1).setValues(
+        rows.slice(1).map(function (f) { return [String(f[COL_RUL.id]).trim() === r.id]; })
+      );
+    }
+    bumpRevision_('ruletas');
+    bumpRevision_('premios');   // el totem detecta el cambio de ruleta con esta revisión
     return jsonOut_({ ok: true });
   });
 }
@@ -564,7 +762,8 @@ function handleListParticipantes_(body) {
       telefono: String(r[COL_PAR.telefono] || ''),
       premio: String(r[COL_PAR.premio] || ''),
       gano: esActivo_(r[COL_PAR.gano]),
-      entregado: esActivo_(r[COL_PAR.entregado])
+      entregado: esActivo_(r[COL_PAR.entregado]),
+      ruleta: String(r[COL_PAR.ruleta] || '')
     });
   }
   return jsonOut_({ ok: true, participantes: lista });
@@ -586,7 +785,7 @@ function handleClearParticipantes_(body) {
   requireAdmin_(body);
   return conLock_(function () {
     var sheet = getSheet_(SHEET_PARTICIPANTES);
-    if (sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).clearContent();
+    if (sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).clearContent();
     bumpRevision_('participantes');
     return jsonOut_({ ok: true });
   });
@@ -686,8 +885,9 @@ function handleCambiarMiPassword_(body) {
 var ENCABEZADOS = {
   Config: ['clave', 'valor'],
   Anuncios: ['id', 'tipo', 'titulo', 'subtitulo', 'precio', 'color', 'src', 'duracion', 'activo', 'desde', 'hasta', 'orden', 'nombre'],
-  Premios: ['id', 'etiqueta', 'color', 'peso', 'stock', 'gana', 'activo'],
-  Participantes: ['id', 'fecha', 'nombre', 'telefono', 'premio', 'gano', 'entregado'],
+  Ruletas: ['id', 'nombre', 'activa'],
+  Premios: ['id', 'etiqueta', 'color', 'peso', 'stock', 'gana', 'activo', 'ruletaId'],
+  Participantes: ['id', 'fecha', 'nombre', 'telefono', 'premio', 'gano', 'entregado', 'ruleta'],
   Usuarios: ['usuario', 'password', 'rol', 'activo', 'nombre']
 };
 
@@ -740,6 +940,7 @@ function instalar() {
     pre.getRange(2, 1, pr.length, 7).setValues(pr);
     mensaje += 'Premios de ejemplo creados. ';
   }
+  asegurarRuletas_();   // crea «Ruleta principal» y le asigna los premios
   var cfg = ss.getSheetByName(SHEET_CONFIG);
   if (cfg.getLastRow() < 2) {
     var filas = Object.keys(CONFIG_DEFECTO).map(function (k) { return [k, CONFIG_DEFECTO[k]]; });

@@ -29,6 +29,7 @@ export interface DefTabla {
 
 export const TABLAS = {
   anuncios: { accion: 'listAnuncios', campo: 'anuncios', rev: 'anuncios', persistir: true, mensajeError: 'No se pudieron cargar los anuncios.' },
+  ruletas: { accion: 'listRuletas', campo: 'ruletas', rev: 'ruletas', persistir: true, mensajeError: 'No se pudieron cargar las ruletas.' },
   premios: { accion: 'listPremios', campo: 'premios', rev: 'premios', persistir: true, mensajeError: 'No se pudieron cargar los premios.' },
   participantes: { accion: 'listParticipantes', campo: 'participantes', rev: 'participantes', persistir: true, mensajeError: 'No se pudieron cargar los participantes.' },
   config: { accion: 'getConfig', campo: 'config', rev: 'config', persistir: true, mensajeError: 'No se pudo cargar la configuración.' },

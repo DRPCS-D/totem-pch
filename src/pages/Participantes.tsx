@@ -82,6 +82,7 @@ export default function Participantes() {
                   <th className="px-4 py-2.5 font-medium">Fecha</th>
                   <th className="px-4 py-2.5 font-medium">Nombre</th>
                   <th className="px-4 py-2.5 font-medium">Teléfono</th>
+                  <th className="px-4 py-2.5 font-medium">Ruleta</th>
                   <th className="px-4 py-2.5 font-medium">Resultado</th>
                   <th className="px-4 py-2.5 font-medium">Entrega</th>
                 </tr>
@@ -92,6 +93,7 @@ export default function Participantes() {
                     <td className="tabular whitespace-nowrap px-4 py-2.5 text-muted-foreground">{formatFechaHora(p.fecha)}</td>
                     <td className="px-4 py-2.5 text-foreground">{p.nombre || '—'}</td>
                     <td className="tabular px-4 py-2.5 text-foreground">{p.telefono || '—'}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{p.ruleta || '—'}</td>
                     <td className="px-4 py-2.5"><Badge tono={p.gano ? 'primary' : 'neutral'}>{p.premio}</Badge></td>
                     <td className="px-4 py-2.5">
                       {p.gano ? (

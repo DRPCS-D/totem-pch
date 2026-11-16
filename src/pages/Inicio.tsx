@@ -8,6 +8,7 @@ import { useAnuncios } from '@/hooks/useAnuncios'
 import { useAuth } from '@/hooks/useAuth'
 import { useParticipantes } from '@/hooks/useParticipantes'
 import { usePremios } from '@/hooks/usePremios'
+import { useRuletas } from '@/hooks/useRuletas'
 import { ROL_LABEL } from '@/lib/tipos'
 
 function Tarjeta({
@@ -35,7 +36,8 @@ function Tarjeta({
 export default function Inicio() {
   const { nombre, rol } = useAuth()
   const anuncios = useAnuncios()
-  const premios = usePremios()
+  const ruletas = useRuletas()
+  const premios = usePremios(ruletas.activa?.id ?? null)
   const participantes = useParticipantes()
 
   const resumen = useMemo(() => {
@@ -60,7 +62,7 @@ export default function Inicio() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Tarjeta to="/anuncios" titulo="Anuncios activos" valor={resumen.activos} detalle={`${anuncios.data.length} en total`} icono={ImageIcon} cargando={anuncios.loading} />
-        <Tarjeta to="/ruleta" titulo="Premios en la ruleta" valor={resumen.premiosActivos} detalle="Casillas activas" icono={Trophy} cargando={premios.loading} />
+        <Tarjeta to="/ruleta" titulo="Premios en la ruleta" valor={resumen.premiosActivos} detalle={ruletas.activa ? `Ruleta activa: ${ruletas.activa.nombre}` : 'Sin ruleta activa'} icono={Trophy} cargando={ruletas.loading || premios.loading} />
         <Tarjeta to="/participantes" titulo="Jugaron hoy" valor={resumen.hoy} detalle={`${participantes.data.length} en total`} icono={Users} cargando={participantes.loading} />
         <Tarjeta to="/participantes" titulo="Premios por entregar" valor={resumen.porEntregar} detalle="Ganadores pendientes" icono={Palette} cargando={participantes.loading} />
       </div>

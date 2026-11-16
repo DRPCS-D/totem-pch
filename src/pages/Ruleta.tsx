@@ -1,16 +1,18 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Plus, Trash2, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { ErrorBox } from '@/components/ui/estado'
-import { Field, Input } from '@/components/ui/field'
+import { Field, Input, Select } from '@/components/ui/field'
 import { ConfirmModal, Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfig } from '@/hooks/useConfig'
 import { usePremios, type DatosPremio } from '@/hooks/usePremios'
-import { CONFIG_DEFECTO, type ConfigTotem, type Premio } from '@/lib/tipos'
+import { useRuletas } from '@/hooks/useRuletas'
+import { cn } from '@/lib/utils'
+import { CONFIG_DEFECTO, type ConfigTotem, type Premio, type Ruleta } from '@/lib/tipos'
 
 const PREMIO_VACIO: DatosPremio = { etiqueta: '', color: '#3b82f6', peso: 10, stock: -1, gana: true, activo: true }
 
@@ -22,6 +24,8 @@ function Check({ label, valor, onCambiar }: { label: string; valor: boolean; onC
     </label>
   )
 }
+
+/* ───────────────────────── Premio ───────────────────────── */
 
 function PremioModal({
   premio, abierto, onCerrar, onGuardado, onBorrar, crear, editar,
@@ -96,15 +100,103 @@ function PremioModal({
   )
 }
 
-export default function Ruleta() {
+/* ───────────────────────── Ruleta (plantilla) ───────────────────────── */
+
+type ModoRuleta = { tipo: 'nueva'; copiarDe: string; nombre: string } | { tipo: 'renombrar'; ruleta: Ruleta }
+
+function RuletaModal({
+  modo, ruletas, onCerrar, onHecho, crear, renombrar,
+}: {
+  modo: ModoRuleta | null
+  ruletas: Ruleta[]
+  onCerrar: () => void
+  onHecho: (idNuevo?: string) => void
+  crear: ReturnType<typeof useRuletas>['crear']
+  renombrar: ReturnType<typeof useRuletas>['renombrar']
+}) {
+  const [nombre, setNombre] = useState('')
+  const [copiarDe, setCopiarDe] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    if (!modo) return
+    setNombre(modo.tipo === 'nueva' ? modo.nombre : modo.ruleta.nombre)
+    setCopiarDe(modo.tipo === 'nueva' ? modo.copiarDe : '')
+    setError(null)
+  }, [modo])
+
+  async function onGuardar() {
+    if (!modo) return
+    const n = nombre.trim()
+    if (!n) return setError('Ponle un nombre a la ruleta.')
+    setGuardando(true)
+    setError(null)
+    if (modo.tipo === 'renombrar') {
+      const { error: err } = await renombrar(modo.ruleta.id, n)
+      setGuardando(false)
+      if (err) return setError(err)
+      toast.success('Ruleta renombrada.')
+      onHecho()
+    } else {
+      const { error: err, data } = await crear(n, copiarDe)
+      setGuardando(false)
+      if (err) return setError(err)
+      toast.success('Ruleta creada. Actívala cuando quieras usarla en el totem.')
+      onHecho(data?.id)
+    }
+  }
+
+  return (
+    <Modal
+      abierto={modo !== null}
+      titulo={modo?.tipo === 'renombrar' ? 'Renombrar ruleta' : 'Nueva ruleta'}
+      onCerrar={onCerrar}
+      footer={
+        <>
+          <Button variant="outline" onClick={onCerrar} disabled={guardando}>Cancelar</Button>
+          <Button onClick={onGuardar} disabled={guardando}>{guardando ? 'Guardando…' : modo?.tipo === 'renombrar' ? 'Guardar' : 'Crear ruleta'}</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="Nombre de la ruleta *" hint="Ej.: «Navidad», «Día del niño», «Liquidación».">
+          <Input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={40} autoFocus />
+        </Field>
+        {modo?.tipo === 'nueva' && (
+          <Field label="Premios iniciales" hint="Puedes empezar desde cero o copiar los premios de otra ruleta y luego ajustarlos.">
+            <Select value={copiarDe} onChange={(e) => setCopiarDe(e.target.value)}>
+              <option value="">Vacía (agregaré los premios después)</option>
+              {ruletas.map((r) => (
+                <option key={r.id} value={r.id}>Copiar de «{r.nombre}» ({r.premios} premios)</option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        {error && <ErrorBox mensaje={error} />}
+      </div>
+    </Modal>
+  )
+}
+
+/* ───────────────────────── Página ───────────────────────── */
+
+export default function RuletaPage() {
   const cfg = useConfig()
-  const premios = usePremios()
+  const ruletas = useRuletas()
+  const [seleccion, setSeleccion] = useState<string | null>(null)
+  const seleccionada = ruletas.data.find((r) => r.id === seleccion) ?? ruletas.activa ?? ruletas.data[0] ?? null
+  const premios = usePremios(seleccionada?.id ?? null)
+
   const [draft, setDraft] = useState<ConfigTotem>(CONFIG_DEFECTO)
   const [sucio, setSucio] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [modal, setModal] = useState<'nuevo' | Premio | null>(null)
   const [borrar, setBorrar] = useState<Premio | null>(null)
   const [borrando, setBorrando] = useState(false)
+  const [modalRuleta, setModalRuleta] = useState<ModoRuleta | null>(null)
+  const [borrarRuleta, setBorrarRuleta] = useState<Ruleta | null>(null)
+  const [activando, setActivando] = useState<string | null>(null)
 
   useEffect(() => {
     if (!sucio) setDraft(cfg.config)
@@ -120,6 +212,15 @@ export default function Ruleta() {
     [premios.data],
   )
 
+  async function activar(r: Ruleta) {
+    setActivando(r.id)
+    const { error } = await ruletas.activar(r.id)
+    setActivando(null)
+    if (error) return toast.error(error)
+    toast.success(`«${r.nombre}» es ahora la ruleta activa. El totem la mostrará en su próxima actualización (o al instante con los 5 toques arriba a la derecha).`, { duration: 8000 })
+    ruletas.refetch()
+  }
+
   async function guardar() {
     setGuardando(true)
     const { error } = await cfg.guardar({
@@ -133,15 +234,131 @@ export default function Ruleta() {
     cfg.refetch()
   }
 
+  const apsViejo = ruletas.error?.includes('Acción desconocida')
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Ruleta de sorteos</h1>
-        <p className="text-sm text-muted-foreground">El resultado lo decide el servidor, según el peso y el stock de cada premio.</p>
+        <p className="text-sm text-muted-foreground">
+          Crea varias ruletas con sus propios premios y elige con un clic cuál está activa en el totem. El resultado lo decide el servidor, según el peso y el stock.
+        </p>
       </div>
 
+      {/* ── Mis ruletas ── */}
+      <section className="rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Mis ruletas ({ruletas.data.length})</h2>
+          <Button size="sm" onClick={() => setModalRuleta({ tipo: 'nueva', copiarDe: '', nombre: '' })}><Plus /> Nueva ruleta</Button>
+        </div>
+        <div className="p-5">
+          {ruletas.loading ? (
+            <Skeleton className="h-24" />
+          ) : apsViejo ? (
+            <ErrorBox mensaje="Tu Apps Script está desactualizado y no tiene ruletas. Pega el Code.gs nuevo y publica una nueva versión (Implementar → Administrar implementaciones → editar → Nueva versión)." />
+          ) : ruletas.error ? (
+            <ErrorBox mensaje={ruletas.error} />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {ruletas.data.map((r) => {
+                const elegida = seleccionada?.id === r.id
+                return (
+                  <div
+                    key={r.id}
+                    className={cn(
+                      'flex flex-col gap-3 rounded-lg border bg-background p-3 transition-colors',
+                      elegida ? 'border-primary ring-2 ring-primary/30' : 'border-border',
+                    )}
+                  >
+                    <button type="button" onClick={() => setSeleccion(r.id)} className="min-w-0 text-left" aria-pressed={elegida}>
+                      <p className="truncate text-sm font-semibold text-foreground">{r.nombre}</p>
+                      <p className="text-xs text-muted-foreground">{r.premios} premios activos{elegida ? ' · editando' : ''}</p>
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {r.activa ? (
+                        <Badge tono="success">Activa en el totem</Badge>
+                      ) : (
+                        <Button size="sm" onClick={() => activar(r)} disabled={activando !== null}>
+                          <Zap /> {activando === r.id ? 'Activando…' : 'Activar'}
+                        </Button>
+                      )}
+                      <div className="ml-auto flex">
+                        <Button variant="ghost" size="icon" className="size-8" title="Renombrar" aria-label="Renombrar" onClick={() => setModalRuleta({ tipo: 'renombrar', ruleta: r })}><Pencil /></Button>
+                        <Button variant="ghost" size="icon" className="size-8" title="Duplicar" aria-label="Duplicar" onClick={() => setModalRuleta({ tipo: 'nueva', copiarDe: r.id, nombre: `${r.nombre} (copia)` })}><Copy /></Button>
+                        <Button variant="ghost" size="icon" className="size-8" title={r.activa ? 'No se puede borrar la ruleta activa' : 'Borrar'} aria-label="Borrar" disabled={r.activa} onClick={() => setBorrarRuleta(r)}><Trash2 /></Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Premios de la ruleta elegida ── */}
+      {seleccionada && (
+        <section className="rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">Premios de «{seleccionada.nombre}» ({premios.data.length})</h2>
+              {seleccionada.activa && <Badge tono="success">Activa</Badge>}
+            </div>
+            <div className="flex gap-2">
+              {!seleccionada.activa && (
+                <Button size="sm" variant="outline" onClick={() => activar(seleccionada)} disabled={activando !== null}><Zap /> Activar esta ruleta</Button>
+              )}
+              <Button size="sm" onClick={() => setModal('nuevo')}><Plus /> Agregar premio</Button>
+            </div>
+          </div>
+          {!seleccionada.activa && (
+            <p className="border-b border-border bg-secondary/50 px-5 py-2 text-xs text-muted-foreground">
+              Esta ruleta no está activa: puedes editarla con calma y el totem no la muestra hasta que la actives.
+            </p>
+          )}
+          {premios.loading ? (
+            <div className="p-5"><Skeleton className="h-32" /></div>
+          ) : premios.error ? (
+            <div className="p-5"><ErrorBox mensaje={premios.error} /></div>
+          ) : premios.data.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">Esta ruleta aún no tiene premios. Agrega al menos 2 para poder activarla.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="px-4 py-2.5 font-medium">Premio</th>
+                    <th className="px-4 py-2.5 font-medium">Probabilidad</th>
+                    <th className="px-4 py-2.5 font-medium">Stock</th>
+                    <th className="px-4 py-2.5 font-medium">Tipo</th>
+                    <th className="px-4 py-2.5 font-medium">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {premios.data.map((p) => (
+                    <tr key={p.id} onClick={() => setModal(p)} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/40">
+                      <td className="px-4 py-2.5 font-medium text-foreground">
+                        <span className="mr-2 inline-block size-3 rounded-full align-middle" style={{ background: p.color }} />
+                        {p.etiqueta}
+                      </td>
+                      <td className="tabular px-4 py-2.5 text-muted-foreground">
+                        {p.activo && p.stock !== 0 ? `${((p.peso / totalPeso) * 100).toFixed(1)} %` : '—'}
+                      </td>
+                      <td className="tabular px-4 py-2.5 text-muted-foreground">{p.stock === -1 ? '∞' : p.stock === 0 ? 'Agotado' : p.stock}</td>
+                      <td className="px-4 py-2.5"><Badge tono={p.gana ? 'primary' : 'neutral'}>{p.gana ? 'Premio' : 'Sin premio'}</Badge></td>
+                      <td className="px-4 py-2.5"><Badge tono={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Ajustes del juego (valen para cualquier ruleta) ── */}
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-foreground">Ajustes del juego</h2>
+        <h2 className="mb-4 text-sm font-semibold text-foreground">Ajustes del juego <span className="font-normal text-muted-foreground">(valen para cualquier ruleta)</span></h2>
         {cfg.loading ? (
           <Skeleton className="h-40" />
         ) : (
@@ -164,48 +381,6 @@ export default function Ruleta() {
         )}
       </section>
 
-      <section className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold text-foreground">Premios ({premios.data.length})</h2>
-          <Button size="sm" onClick={() => setModal('nuevo')}><Plus /> Agregar</Button>
-        </div>
-        {premios.loading ? (
-          <div className="p-5"><Skeleton className="h-32" /></div>
-        ) : premios.error ? (
-          <div className="p-5"><ErrorBox mensaje={premios.error} /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-2.5 font-medium">Premio</th>
-                  <th className="px-4 py-2.5 font-medium">Probabilidad</th>
-                  <th className="px-4 py-2.5 font-medium">Stock</th>
-                  <th className="px-4 py-2.5 font-medium">Tipo</th>
-                  <th className="px-4 py-2.5 font-medium">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {premios.data.map((p) => (
-                  <tr key={p.id} onClick={() => setModal(p)} className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/40">
-                    <td className="px-4 py-2.5 font-medium text-foreground">
-                      <span className="mr-2 inline-block size-3 rounded-full align-middle" style={{ background: p.color }} />
-                      {p.etiqueta}
-                    </td>
-                    <td className="tabular px-4 py-2.5 text-muted-foreground">
-                      {p.activo && p.stock !== 0 ? `${((p.peso / totalPeso) * 100).toFixed(1)} %` : '—'}
-                    </td>
-                    <td className="tabular px-4 py-2.5 text-muted-foreground">{p.stock === -1 ? '∞' : p.stock === 0 ? 'Agotado' : p.stock}</td>
-                    <td className="px-4 py-2.5"><Badge tono={p.gana ? 'primary' : 'neutral'}>{p.gana ? 'Premio' : 'Sin premio'}</Badge></td>
-                    <td className="px-4 py-2.5"><Badge tono={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
       <PremioModal
         abierto={modal !== null}
         premio={modal === 'nuevo' ? null : modal}
@@ -221,7 +396,7 @@ export default function Ruleta() {
         titulo="Borrar premio"
         textoConfirmar="Borrar"
         procesando={borrando}
-        mensaje={<>¿Borrar <strong>{borrar?.etiqueta}</strong> de la ruleta?</>}
+        mensaje={<>¿Borrar <strong>{borrar?.etiqueta}</strong> de «{seleccionada?.nombre}»?</>}
         onCancelar={() => setBorrar(null)}
         onConfirmar={async () => {
           if (!borrar) return
@@ -231,6 +406,37 @@ export default function Ruleta() {
           if (error) toast.error(error)
           else { toast.success('Premio borrado.'); premios.refetch() }
           setBorrar(null)
+        }}
+      />
+
+      <RuletaModal
+        modo={modalRuleta}
+        ruletas={ruletas.data}
+        onCerrar={() => setModalRuleta(null)}
+        onHecho={(idNuevo) => { setModalRuleta(null); if (idNuevo) setSeleccion(idNuevo); ruletas.refetch() }}
+        crear={ruletas.crear}
+        renombrar={ruletas.renombrar}
+      />
+
+      <ConfirmModal
+        abierto={borrarRuleta !== null}
+        titulo="Borrar ruleta"
+        textoConfirmar="Borrar"
+        procesando={borrando}
+        mensaje={<>¿Borrar la ruleta <strong>{borrarRuleta?.nombre}</strong> y sus {borrarRuleta?.premios} premios? No se puede deshacer.</>}
+        onCancelar={() => setBorrarRuleta(null)}
+        onConfirmar={async () => {
+          if (!borrarRuleta) return
+          setBorrando(true)
+          const { error } = await ruletas.eliminar(borrarRuleta.id)
+          setBorrando(false)
+          if (error) toast.error(error)
+          else {
+            toast.success('Ruleta borrada.')
+            if (seleccion === borrarRuleta.id) setSeleccion(null)
+            ruletas.refetch()
+          }
+          setBorrarRuleta(null)
         }}
       />
     </div>

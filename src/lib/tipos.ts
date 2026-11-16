@@ -35,8 +35,18 @@ export interface Anuncio {
   orden: number
 }
 
+/** Plantilla de premios con nombre; solo una está activa (la que muestra el totem). */
+export interface Ruleta {
+  id: string
+  nombre: string
+  activa: boolean
+  /** Cantidad de premios activos. */
+  premios: number
+}
+
 export interface Premio {
   id: string
+  ruletaId: string
   etiqueta: string
   color: string
   peso: number
@@ -55,6 +65,7 @@ export interface Participante {
   premio: string
   gano: boolean
   entregado: boolean
+  ruleta: string
 }
 
 export interface ConfigTotem {

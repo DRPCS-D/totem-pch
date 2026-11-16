@@ -17,6 +17,8 @@ Pantalla publicitaria con ruleta de sorteos para el totem **Joog SV55L** (55", A
 
 Roles: **admin** (todo, incluye usuarios) y **editor** (anuncios, ruleta, participantes, apariencia).
 
+**Ruletas (plantillas de premios):** en *Ruleta* puedes crear varias ruletas, cada una con sus propios premios (por ejemplo «Navidad», «Día del niño»), duplicarlas, renombrarlas y elegir **con un clic cuál está activa**: esa es la que muestra el totem y la que usa el sorteo. Una ruleta inactiva se puede editar con calma sin que el totem la vea. La hoja `Participantes` guarda con qué ruleta jugó cada persona. Las hojas anteriores se migran solas: sus premios pasan a «Ruleta principal».
+
 ## 1. Backend (Google Sheets + Apps Script)
 
 1. Crea una hoja de cálculo nueva en Google Sheets.
