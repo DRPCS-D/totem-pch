@@ -232,10 +232,13 @@
     game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' }; game.sel = null;
     var g = $('#game');
     g.classList.add('on'); resetIdle(); pararSonidos();
-    // Con el selector activo y más de una ruleta disponible, primero se elige; si no, se juega con la activa.
-    if (data.config.ruletaSelector && (data.ruletas || []).length > 1) { aplicarVista(null); renderElige(); }
-    else { aplicarVista(); renderForm(); }
+    // Primero los datos; con el selector activo y más de una ruleta disponible, después se elige la ruleta.
+    if (conSelector()) aplicarVista(null); else aplicarVista();
+    renderForm();
   }
+  function conSelector() { return !!(data.config.ruletaSelector && (data.ruletas || []).length > 1); }
+  /* Paso siguiente a los datos: elegir ruleta (si hay selector) o ir directo a la ruleta. */
+  function siguientePaso() { if (conSelector() && !game.sel) renderElige(); else renderWheel(); }
   /* Ruleta con la que se juega: la elegida en pantalla o la activa. */
   function vista() { return game.sel || { id: '', premios: data.premios, ruleta: data.ruleta || {} }; }
   function aplicarVista(sel) {
@@ -252,7 +255,7 @@
     document.querySelectorAll('.opcion').forEach(function (b) {
       b.onclick = function () {
         var r = data.ruletas[+b.dataset.i];
-        aplicarVista({ id: r.id, premios: r.premios, ruleta: r }); resetIdle(); renderForm();
+        aplicarVista({ id: r.id, premios: r.premios, ruleta: r }); resetIdle(); renderWheel();
       };
     });
   }
@@ -268,7 +271,9 @@
     if (!game.on || game.spinning) return;
     $('#result').classList.remove('on'); parar(game.fx); game.fx = null;
     if (game.bg && game.bg.audio) game.bg.audio.volume = game.bg.vol;
-    game.data = { name: '', phone: '' }; hideKb(); renderForm(); resetIdle();
+    game.data = { name: '', phone: '' }; hideKb();
+    if (conSelector()) aplicarVista(null);   // la siguiente persona vuelve a elegir su ruleta
+    renderForm(); resetIdle();
   }
   $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = otraJugada;
 
@@ -285,10 +290,10 @@
       (c.datosOpcionales ? '<button class="btn sec" id="skip">JUGAR SIN DATOS</button>' : '');
     body.querySelectorAll('.inp').forEach(function (i) { i.onclick = function () { focusField(i.dataset.f); }; });
     $('#go').onclick = submitForm;
-    if ($('#skip')) $('#skip').onclick = function () { game.data = { name: '', phone: '' }; hideKb(); renderWheel(); };
+    if ($('#skip')) $('#skip').onclick = function () { game.data = { name: '', phone: '' }; hideKb(); siguientePaso(); };
     if (c.askName) focusField('name'); else if (c.askPhone) focusField('phone');
     paintFields();
-    if (!c.askName && !c.askPhone) renderWheel();
+    if (!c.askName && !c.askPhone) siguientePaso();
   }
   function paintFields() {
     document.querySelectorAll('.inp').forEach(function (i) { i.textContent = game.data[i.dataset.f]; i.classList.toggle('focus', game.focus === i.dataset.f); });
@@ -312,7 +317,7 @@
     var op = c.datosOpcionales;   // opcional: vacío vale, pero lo que se escriba debe ser válido
     if (c.askName && d.name.trim().length < 2 && !(op && !d.name.trim())) return err('Ingresá tu nombre');
     if (c.askPhone && d.phone.replace(/\D/g, '').length < 7 && !(op && !d.phone.trim())) return err('Ingresá un teléfono válido');
-    hideKb(); renderWheel();
+    hideKb(); siguientePaso();
   }
 
   var ROWS = { alpha: ['qwertyuiop', 'asdfghjklñ', 'zxcvbnm'], num: ['123', '456', '789', '0'] };

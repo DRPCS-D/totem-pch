@@ -524,7 +524,7 @@ export default function RuletaPage() {
             <div className="space-y-1">
               <Check label="Dejar que la persona elija la ruleta en el totem" valor={draft.ruletaSelector} onCambiar={(v) => set('ruletaSelector', v)} />
               <p className="pl-6 text-xs text-muted-foreground">
-                Al tocar el ícono del sorteo, el totem muestra las ruletas marcadas como «Disponible para elegir en el totem» (más la activa). Si solo hay una, juega directo.
+                después de los datos, el totem muestra las ruletas marcadas como «Disponible para elegir en el totem» (más la activa). Si solo hay una, juega directo.
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-6">
