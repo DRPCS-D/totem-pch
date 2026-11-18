@@ -34,7 +34,7 @@ var SHEET_RULETAS = 'Ruletas';
 
 var COL_ANU = { id: 0, tipo: 1, titulo: 2, subtitulo: 3, precio: 4, color: 5, src: 6, duracion: 7, activo: 8, desde: 9, hasta: 10, orden: 11, nombre: 12 };
 var COL_PRE = { id: 0, etiqueta: 1, color: 2, peso: 3, stock: 4, gana: 5, activo: 6, ruletaId: 7, sonido: 8 };
-var COL_RUL = { id: 0, nombre: 1, activa: 2, fondo: 3, sonidoFondo: 4, sonidoGana: 5, sonidoPierde: 6 };
+var COL_RUL = { id: 0, nombre: 1, activa: 2, fondo: 3, sonidoFondo: 4, sonidoGana: 5, sonidoPierde: 6, elegible: 7 };
 var COL_PAR = { id: 0, fecha: 1, nombre: 2, telefono: 3, premio: 4, gano: 5, entregado: 6, ruleta: 7 };
 var COL_USR = { usuario: 0, password: 1, rol: 2, activo: 3, nombre: 4 };
 
@@ -57,6 +57,7 @@ var CONFIG_DEFECTO = {
   videoVolume: 100,
   gameSound: true,
   gameVolume: 80,
+  ruletaSelector: false,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',
   raffleSubtitle: 'Completá tus datos y probá tu suerte',
@@ -103,6 +104,7 @@ function doPost(e) {
       case 'deleteRuleta':      return handleDeleteRuleta_(body);
       case 'activarRuleta':     return handleActivarRuleta_(body);
       case 'ajustesRuleta':     return handleAjustesRuleta_(body);
+      case 'elegibleRuleta':    return handleElegibleRuleta_(body);
       case 'subirSonido':       return handleSubirSonido_(body);
       case 'listPremios':       return handleListPremios_(body);
       case 'createPremio':      return handleSavePremio_(body, true);
@@ -259,14 +261,34 @@ function handleTotemConfig_() {
   var premios = leerPremios_(activa.id).filter(function (p) { return p.activo; }).map(function (p) {
     return { id: p.id, etiqueta: p.etiqueta, color: p.color, gana: p.gana, sonido: p.sonido };
   });
-  return jsonOut_({
+  var cfg = leerConfig_();
+  var salida = {
     ok: true,
     rev: r.config + '.' + r.anuncios + '.' + r.premios,
-    config: leerConfig_(),
+    config: cfg,
     anuncios: anuncios,
     premios: premios,
-    ruleta: { nombre: activa.nombre, fondo: activa.fondo, sonidoFondo: activa.sonidoFondo, sonidoGana: activa.sonidoGana, sonidoPierde: activa.sonidoPierde }
-  });
+    ruleta: { nombre: activa.nombre, fondo: activa.fondo, sonidoFondo: activa.sonidoFondo, sonidoGana: activa.sonidoGana, sonidoPierde: activa.sonidoPierde },
+    ruletas: []
+  };
+  // Con el selector activado, el totem deja elegir entre las ruletas marcadas como disponibles (más la activa).
+  if (cfg.ruletaSelector) {
+    var todas = leerPremios_();
+    ruletasElegibles_().forEach(function (x) {
+      salida.ruletas.push({
+        id: x.id, nombre: x.nombre, fondo: x.fondo, sonidoFondo: x.sonidoFondo, sonidoGana: x.sonidoGana, sonidoPierde: x.sonidoPierde,
+        premios: todas.filter(function (p) { return p.ruletaId === x.id && p.activo; }).map(function (p) {
+          return { id: p.id, etiqueta: p.etiqueta, color: p.color, gana: p.gana, sonido: p.sonido };
+        })
+      });
+    });
+  }
+  return jsonOut_(salida);
+}
+
+/** Ruletas que el totem ofrece cuando el selector está activo: la activa y las marcadas «disponible», con al menos 2 premios. */
+function ruletasElegibles_() {
+  return leerRuletas_().filter(function (x) { return (x.activa || x.elegible) && x.premios >= 2; });
 }
 
 var MAX_VIDEO_BYTES = 20 * 1024 * 1024;
@@ -313,6 +335,12 @@ function handleGirar_(body) {
     }
 
     var activa = ruletaActiva_();
+    var pedida = String(body.ruletaId || '').trim();
+    if (pedida && cfg.ruletaSelector) {
+      var elegida = ruletasElegibles_().filter(function (x) { return x.id === pedida; })[0];
+      if (!elegida) throw new Error('Esa ruleta ya no está disponible.');
+      activa = elegida;
+    }
     var sheetPr = getSheet_(SHEET_PREMIOS);
     var rows = sheetPr.getDataRange().getValues();
     var todos = [];
@@ -601,7 +629,7 @@ function asegurarRuletas_() {
   var pre = getSheet_(SHEET_PREMIOS);
   encabezadoSiFalta_(pre, COL_PRE.ruletaId + 1, 'ruletaId');
   encabezadoSiFalta_(pre, COL_PRE.sonido + 1, 'sonido');
-  ['fondo', 'sonidoFondo', 'sonidoGana', 'sonidoPierde'].forEach(function (k) { encabezadoSiFalta_(hoja, COL_RUL[k] + 1, k); });
+  ['fondo', 'sonidoFondo', 'sonidoGana', 'sonidoPierde', 'elegible'].forEach(function (k) { encabezadoSiFalta_(hoja, COL_RUL[k] + 1, k); });
   encabezadoSiFalta_(getSheet_(SHEET_PARTICIPANTES), COL_PAR.ruleta + 1, 'ruleta');
 
   var rows = hoja.getDataRange().getValues(), activaId = '', primeraId = '', primeraFila = 0;
@@ -649,6 +677,7 @@ function leerRuletas_() {
       sonidoFondo: String(rows[i][COL_RUL.sonidoFondo] || '').trim(),
       sonidoGana: String(rows[i][COL_RUL.sonidoGana] || '').trim(),
       sonidoPierde: String(rows[i][COL_RUL.sonidoPierde] || '').trim(),
+      elegible: esActivo_(rows[i][COL_RUL.elegible]),
       premios: premios.filter(function (p) { return p.ruletaId === id && p.activo; }).length
     });
   }
@@ -758,6 +787,21 @@ function handleActivarRuleta_(body) {
     }
     bumpRevision_('ruletas');
     bumpRevision_('premios');   // el totem detecta el cambio de ruleta con esta revisión
+    return jsonOut_({ ok: true });
+  });
+}
+
+/** Marca o desmarca una ruleta como disponible para elegir en el totem. */
+function handleElegibleRuleta_(body) {
+  requireAuth_(body);
+  var r = ruletaPorId_(leerRuletas_(), body.id);
+  if (!r) throw new Error('La ruleta ya no existe.');
+  return conLock_(function () {
+    var hoja = getSheet_(SHEET_RULETAS);
+    var f = filaPorId_(hoja, COL_RUL.id, r.id);
+    hoja.getRange(f.indice, COL_RUL.elegible + 1).setValue(!!body.elegible);
+    bumpRevision_('ruletas');
+    bumpRevision_('premios');
     return jsonOut_({ ok: true });
   });
 }
@@ -968,7 +1012,7 @@ function handleCambiarMiPassword_(body) {
 var ENCABEZADOS = {
   Config: ['clave', 'valor'],
   Anuncios: ['id', 'tipo', 'titulo', 'subtitulo', 'precio', 'color', 'src', 'duracion', 'activo', 'desde', 'hasta', 'orden', 'nombre'],
-  Ruletas: ['id', 'nombre', 'activa', 'fondo', 'sonidoFondo', 'sonidoGana', 'sonidoPierde'],
+  Ruletas: ['id', 'nombre', 'activa', 'fondo', 'sonidoFondo', 'sonidoGana', 'sonidoPierde', 'elegible'],
   Premios: ['id', 'etiqueta', 'color', 'peso', 'stock', 'gana', 'activo', 'ruletaId', 'sonido'],
   Participantes: ['id', 'fecha', 'nombre', 'telefono', 'premio', 'gano', 'entregado', 'ruleta'],
   Usuarios: ['usuario', 'password', 'rol', 'activo', 'nombre']

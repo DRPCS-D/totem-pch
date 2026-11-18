@@ -315,12 +315,18 @@ export default function RuletaPage() {
     ruletas.refetch()
   }
 
+  async function cambiarElegible(r: Ruleta, v: boolean) {
+    const { error } = await ruletas.elegible(r.id, v)
+    if (error) return toast.error(error)
+    ruletas.refetch()
+  }
+
   async function guardar() {
     setGuardando(true)
     const { error } = await cfg.guardar({
       raffleEnabled: draft.raffleEnabled, raffleTitle: draft.raffleTitle, raffleSubtitle: draft.raffleSubtitle,
       maxSpins: draft.maxSpins, askName: draft.askName, askPhone: draft.askPhone, loseMessage: draft.loseMessage,
-      gameSound: draft.gameSound, gameVolume: draft.gameVolume,
+      gameSound: draft.gameSound, gameVolume: draft.gameVolume, ruletaSelector: draft.ruletaSelector,
     })
     setGuardando(false)
     if (error) return toast.error(error, { duration: 15000 })
@@ -378,6 +384,16 @@ export default function RuletaPage() {
                       <p className="truncate text-sm font-semibold text-foreground">{r.nombre}</p>
                       <p className="text-xs text-muted-foreground">{r.premios} premios activos{elegida ? ' · editando' : ''}</p>
                     </button>
+                    {draft.ruletaSelector && (
+                      r.activa ? (
+                        <p className="text-xs text-muted-foreground">Siempre disponible para elegir en el totem.</p>
+                      ) : (
+                        <label className="flex items-center gap-2 text-xs text-foreground">
+                          <input type="checkbox" className="size-4 accent-primary" checked={!!r.elegible} onChange={(e) => cambiarElegible(r, e.target.checked)} />
+                          Disponible para elegir en el totem
+                        </label>
+                      )
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       {r.activa ? (
                         <Badge tono="success">Activa en el totem</Badge>
@@ -488,6 +504,12 @@ export default function RuletaPage() {
             <div className="flex flex-wrap gap-6">
               <Check label="Pedir nombre" valor={draft.askName} onCambiar={(v) => set('askName', v)} />
               <Check label="Pedir teléfono" valor={draft.askPhone} onCambiar={(v) => set('askPhone', v)} />
+            </div>
+            <div className="space-y-1">
+              <Check label="Dejar que la persona elija la ruleta en el totem" valor={draft.ruletaSelector} onCambiar={(v) => set('ruletaSelector', v)} />
+              <p className="pl-6 text-xs text-muted-foreground">
+                Al tocar el ícono del sorteo, el totem muestra las ruletas marcadas como «Disponible para elegir en el totem» (más la activa). Si solo hay una, juega directo.
+              </p>
             </div>
             <div className="flex flex-wrap items-end gap-6">
               <Check label="Sonidos del juego activados" valor={draft.gameSound} onCambiar={(v) => set('gameSound', v)} />

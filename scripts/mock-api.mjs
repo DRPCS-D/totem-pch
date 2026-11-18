@@ -6,14 +6,14 @@ const rev = { config: 1, anuncios: 1, premios: 1, ruletas: 1, participantes: 1, 
 const config = {
   nombre: 'Patachoca', logoText: 'PATACHOCA', logoUrl: 'https://www.patachoca.com.py/assets/patachoca/images/logo.png', primary: '#008fca', accent: '#d91571', showLogo: true, showClock: true,
   ctaText: 'TOCA PARA JUGAR Y GANAR', tickerEnabled: true, tickerText: '¡Bienvenido! · Participá y ganá premios',
-  idleSeconds: 45, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, raffleEnabled: true, raffleTitle: '¡GIRÁ LA RULETA!', raffleSubtitle: 'Completá tus datos y probá tu suerte',
+  idleSeconds: 45, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, ruletaSelector: false, raffleEnabled: true, raffleTitle: '¡GIRÁ LA RULETA!', raffleSubtitle: 'Completá tus datos y probá tu suerte',
   maxSpins: 1, askName: true, askPhone: true, loseMessage: '¡Gracias por participar!',
 }
 let anuncios = [
   { id: 'a1', nombre: 'Cyber Day', tipo: 'texto', titulo: 'CYBER DAY', subtitulo: 'Hasta 14% de descuento', precio: '', color: '#1d4ed8', src: '', duracion: 5, activo: true, desde: '', hasta: '', orden: 1 },
   { id: 'a2', nombre: 'Combo familiar', tipo: 'texto', titulo: 'Combo Familiar', subtitulo: 'Llevá 2 y pagá 1', precio: '45.000 Gs.', color: '#be185d', src: '', duracion: 5, activo: true, desde: '', hasta: '', orden: 2 },
 ]
-let ruletas = [{ id: 'r1', nombre: 'Ruleta principal', activa: true, fondo: '', sonidoFondo: '', sonidoGana: '', sonidoPierde: '' }]
+let ruletas = [{ id: 'r1', nombre: 'Ruleta principal', activa: true, elegible: false, fondo: '', sonidoFondo: '', sonidoGana: '', sonidoPierde: '' }]
 const medios = {}
 let premios = [
   { id: 'p1', ruletaId: 'r1', sonido: '', etiqueta: 'Gift Card 50.000', color: '#f59e0b', peso: 5, stock: 5, gana: true, activo: true },
@@ -27,6 +27,7 @@ let participantes = []
 let usuarios = [{ usuario: 'ADMIN', password: 'admin', rol: 'admin', activo: true, nombre: 'Administrador' }]
 const videos = {}
 const activa = () => ruletas.find((r) => r.activa)
+const elegibles = () => ruletas.filter((r) => (r.activa || r.elegible) && premios.filter((p) => p.ruletaId === r.id && p.activo).length >= 2)
 const uid = () => Math.random().toString(36).slice(2, 10)
 
 function handle(b) {
@@ -37,13 +38,15 @@ function handle(b) {
     case 'totemVideo': if (!videos[b.id]) throw new Error('Video inválido.'); return videos[b.id]
     case 'totemRev': return { rev: `${rev.config}.${rev.anuncios}.${rev.premios}` }
     case 'totemConfig':
-      return { rev: `${rev.config}.${rev.anuncios}.${rev.premios}`, config, anuncios: anuncios.filter((a) => a.activo), premios: premios.filter((p) => p.activo && p.ruletaId === activa().id).map(({ id, etiqueta, color, gana, sonido }) => ({ id, etiqueta, color, gana, sonido })), ruleta: (({ nombre, fondo, sonidoFondo, sonidoGana, sonidoPierde }) => ({ nombre, fondo, sonidoFondo, sonidoGana, sonidoPierde }))(activa()) }
+      return { rev: `${rev.config}.${rev.anuncios}.${rev.premios}`, config, anuncios: anuncios.filter((a) => a.activo), premios: premios.filter((p) => p.activo && p.ruletaId === activa().id).map(({ id, etiqueta, color, gana, sonido }) => ({ id, etiqueta, color, gana, sonido })), ruleta: (({ nombre, fondo, sonidoFondo, sonidoGana, sonidoPierde }) => ({ nombre, fondo, sonidoFondo, sonidoGana, sonidoPierde }))(activa()), ruletas: config.ruletaSelector ? elegibles().map((r) => ({ id: r.id, nombre: r.nombre, fondo: r.fondo, sonidoFondo: r.sonidoFondo, sonidoGana: r.sonidoGana, sonidoPierde: r.sonidoPierde, premios: premios.filter((p) => p.ruletaId === r.id && p.activo).map(({ id, etiqueta, color, gana, sonido }) => ({ id, etiqueta, color, gana, sonido })) })) : [] }
     case 'girar': {
-      const pool = premios.filter((p) => p.activo && p.ruletaId === activa().id && p.stock !== 0 && p.peso > 0)
+      let rul = activa()
+      if (b.ruletaId && config.ruletaSelector) { rul = elegibles().find((r) => r.id === b.ruletaId); if (!rul) throw new Error('Esa ruleta ya no está disponible.') }
+      const pool = premios.filter((p) => p.activo && p.ruletaId === rul.id && p.stock !== 0 && p.peso > 0)
       let t = Math.random() * pool.reduce((s, p) => s + p.peso, 0), el = pool[pool.length - 1]
       for (const p of pool) { t -= p.peso; if (t <= 0) { el = p; break } }
       if (el.stock > 0) { el.stock--; rev.premios++ }
-      participantes.push({ id: uid(), fecha: new Date().toISOString(), nombre: b.nombre, telefono: b.telefono, premio: el.etiqueta, gano: el.gana, entregado: false, ruleta: activa().nombre })
+      participantes.push({ id: uid(), fecha: new Date().toISOString(), nombre: b.nombre, telefono: b.telefono, premio: el.etiqueta, gano: el.gana, entregado: false, ruleta: rul.nombre })
       rev.participantes++
       return { premioId: el.id, etiqueta: el.etiqueta, gano: el.gana }
     }
@@ -64,7 +67,7 @@ function handle(b) {
       auth()
       if (ruletas.some((r) => r.nombre.toLowerCase() === String(b.nombre).trim().toLowerCase())) throw new Error('Ya existe una ruleta con ese nombre.')
       const id = uid(); const o = ruletas.find((r) => r.id === b.copiarDe)
-      ruletas.push({ id, nombre: String(b.nombre).trim(), activa: false, fondo: o?.fondo ?? '', sonidoFondo: o?.sonidoFondo ?? '', sonidoGana: o?.sonidoGana ?? '', sonidoPierde: o?.sonidoPierde ?? '' })
+      ruletas.push({ id, nombre: String(b.nombre).trim(), activa: false, elegible: false, fondo: o?.fondo ?? '', sonidoFondo: o?.sonidoFondo ?? '', sonidoGana: o?.sonidoGana ?? '', sonidoPierde: o?.sonidoPierde ?? '' })
       if (b.copiarDe) premios.filter((p) => p.ruletaId === b.copiarDe).forEach((p) => premios.push({ ...p, id: uid(), ruletaId: id }))
       rev.ruletas++; rev.premios++; return { id }
     }
@@ -72,6 +75,7 @@ function handle(b) {
     case 'subirSonido': { auth(); const id = 'AUD' + uid() + uid(); medios[id] = { mime: b.mime, base64: b.base64 }; return { url: `https://drive.google.com/file/d/${id}/view` } }
     case 'subirImagen': auth(); return { url: 'data:image/jpeg;base64,' + b.base64 }
     case 'totemAudio': if (!medios[b.id]) throw new Error('Ese sonido no está en uso.'); return medios[b.id]
+    case 'elegibleRuleta': { auth(); ruletas.find((x) => x.id === b.id).elegible = !!b.elegible; rev.ruletas++; rev.premios++; return {} }
     case 'updateRuleta': auth(); ruletas.find((r) => r.id === b.id).nombre = b.nombre; rev.ruletas++; return {}
     case 'deleteRuleta': { auth(); const r = ruletas.find((x) => x.id === b.id); if (r.activa) throw new Error('No puedes borrar la ruleta activa. Activa otra primero.'); ruletas = ruletas.filter((x) => x.id !== b.id); premios = premios.filter((p) => p.ruletaId !== b.id); rev.ruletas++; rev.premios++; return {} }
     case 'activarRuleta': {

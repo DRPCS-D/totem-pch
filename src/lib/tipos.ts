@@ -48,6 +48,8 @@ export interface Ruleta {
   sonidoFondo: string
   sonidoGana: string
   sonidoPierde: string
+  /** Disponible para que la persona la elija en el totem (si el selector está activo). */
+  elegible: boolean
 }
 
 export interface Premio {
@@ -91,6 +93,8 @@ export interface ConfigTotem {
   videoSound: boolean
   videoVolume: number
   gameSound: boolean
+  /** El totem deja elegir la ruleta antes de jugar. */
+  ruletaSelector: boolean
   gameVolume: number
   raffleEnabled: boolean
   raffleTitle: string
@@ -116,6 +120,7 @@ export const CONFIG_DEFECTO: ConfigTotem = {
   videoSound: true,
   videoVolume: 100,
   gameSound: true,
+  ruletaSelector: false,
   gameVolume: 80,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',

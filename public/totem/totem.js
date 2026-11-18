@@ -37,7 +37,7 @@
 
   function descargar() {
     return api('totemConfig').then(function (j) {
-      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, ruleta: j.ruleta || {}, rev: j.rev };
+      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, ruleta: j.ruleta || {}, ruletas: j.ruletas || [], rev: j.rev };
       guardarCache(d); setOffline(false); aplicarContenido(d);
     }).catch(function () { setOffline(true); });
   }
@@ -116,8 +116,9 @@
   /* Baja en segundo plano los sonidos y videos en uso (uno por uno) y borra del caché los que ya no se usan. */
   function precargarVideos() {
     var vids = data.anuncios.filter(function (a) { return a.tipo === 'video' && a.activo !== false; }).map(function (a) { return driveId(a.src); }).filter(Boolean);
-    var rl = data.ruleta || {}, auds = [];
-    [rl.sonidoFondo, rl.sonidoGana, rl.sonidoPierde].concat((data.premios || []).map(function (p) { return p.sonido; })).forEach(function (v) {
+    var auds = [], fuentes = [data].concat((data.ruletas || []).map(function (x) { return { ruleta: x, premios: x.premios }; })), vals = [];
+    fuentes.forEach(function (f) { var rl = f.ruleta || {}; vals = vals.concat([rl.sonidoFondo, rl.sonidoGana, rl.sonidoPierde], (f.premios || []).map(function (p) { return p.sonido; })); });
+    vals.forEach(function (v) {
       var i = sonidoId(v); if (i && auds.indexOf(i) < 0) auds.push(i);
     });
     if (window.caches) caches.open(VCACHE).then(function (c) {
@@ -128,7 +129,7 @@
         });
       });
     }).catch(function () {});
-    if (rl.fondo) { var im = new Image(); im.src = rl.fondo; }   // el service worker guarda la imagen de fondo
+    fuentes.forEach(function (f) { var fo = (f.ruleta || {}).fondo; if (fo) { var im = new Image(); im.src = fo; } });   // el service worker guarda las imágenes de fondo
     var cola = auds.map(function (id) { return function () { return audioURL(id); }; }).concat(vids.map(function (id) { return function () { return videoURL(id); }; }));
     cola.reduce(function (p, f) { return p.then(function () { return f().catch(function () {}); }); }, Promise.resolve());
   }
@@ -228,12 +229,32 @@
     document.querySelectorAll('#ads iframe').forEach(function (f) { f.remove(); });   // reproductor de Drive: no se puede pausar, se quita
   }
   function openGame() {
-    game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' };
-    var rl = data.ruleta || {}, g = $('#game');
+    game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' }; game.sel = null;
+    var g = $('#game');
+    g.classList.add('on'); resetIdle(); pararSonidos();
+    // Con el selector activo y más de una ruleta disponible, primero se elige; si no, se juega con la activa.
+    if (data.config.ruletaSelector && (data.ruletas || []).length > 1) { aplicarVista(null); renderElige(); }
+    else { aplicarVista(); renderForm(); }
+  }
+  /* Ruleta con la que se juega: la elegida en pantalla o la activa. */
+  function vista() { return game.sel || { id: '', premios: data.premios, ruleta: data.ruleta || {} }; }
+  function aplicarVista(sel) {
+    if (sel !== undefined) game.sel = sel;
+    var rl = sel === null ? {} : vista().ruleta, g = $('#game');
     g.style.backgroundImage = rl.fondo ? 'url("' + rl.fondo.replace(/"/g, '%22') + '")' : '';
     g.classList.toggle('con-fondo', !!rl.fondo);
-    g.classList.add('on'); renderForm(); resetIdle();
-    pararSonidos(); game.bg = tocar(rl.sonidoFondo, true);   // la llamada nace de un toque: el navegador permite el audio
+    pararSonidos(); if (sel !== null) game.bg = tocar(rl.sonidoFondo, true);   // nace de un toque: el navegador permite el audio
+  }
+  function renderElige() {
+    var c = data.config;
+    $('#gameBody').innerHTML = '<h1>' + esc(c.raffleTitle) + '</h1><div class="sub">Elegí tu ruleta</div><div class="elige">' +
+      data.ruletas.map(function (r, i) { return '<button class="btn opcion" data-i="' + i + '">' + esc(r.nombre) + '</button>'; }).join('') + '</div>';
+    document.querySelectorAll('.opcion').forEach(function (b) {
+      b.onclick = function () {
+        var r = data.ruletas[+b.dataset.i];
+        aplicarVista({ id: r.id, premios: r.premios, ruleta: r }); resetIdle(); renderForm();
+      };
+    });
   }
   function closeGame() {
     game.on = false; game.spinning = false; clearTimeout(game.idleT); $('#closeGame').style.visibility = '';
@@ -269,7 +290,7 @@
     if (tapsF < 5) return;
     tapsF = 0; aviso('Actualizando…');
     api('totemConfig').then(function (j) {
-      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, ruleta: j.ruleta || {}, rev: j.rev };
+      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, ruleta: j.ruleta || {}, ruletas: j.ruletas || [], rev: j.rev };
       guardarCache(d); setOffline(false); aplicarContenido(d); ultimaRev = Date.now(); aviso('Contenido actualizado ✓');
     }).catch(function () { setOffline(true); aviso('No se pudo actualizar'); });
   });
@@ -315,7 +336,7 @@
     return (0.299 * r + 0.587 * g + 0.114 * b) > 170 ? '#0a021c' : '#fff';
   }
   function drawWheel() {
-    var c = $('#wheel'), x = c.getContext('2d'), P = data.premios, n = P.length, seg = 2 * Math.PI / n, R = 440;
+    var c = $('#wheel'), x = c.getContext('2d'), P = vista().premios, n = P.length, seg = 2 * Math.PI / n, R = 440;
     x.clearRect(0, 0, 880, 880);
     P.forEach(function (p, i) {
       var a0 = -Math.PI / 2 + i * seg;
@@ -344,11 +365,11 @@
       raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
-    api('girar', { nombre: game.data.name, telefono: game.data.phone }).then(function (r) {
+    api('girar', { nombre: game.data.name, telefono: game.data.phone, ruletaId: game.sel ? game.sel.id : '' }).then(function (r) {
       esperando = false; cancelAnimationFrame(raf);
-      var i = data.premios.findIndex(function (p) { return p.id === r.premioId; });
+      var i = vista().premios.findIndex(function (p) { return p.id === r.premioId; });
       if (i < 0) i = 0;
-      var seg = 360 / data.premios.length, center = (i + .5) * seg, jitter = (Math.random() - .5) * seg * .7;
+      var seg = 360 / vista().premios.length, center = (i + .5) * seg, jitter = (Math.random() - .5) * seg * .7;
       var objetivo = ((360 - center + jitter) % 360 + 360) % 360;
       var final = ang - (ang % 360) + objetivo + 360 * 4;
       while (final < ang + 360 * 3) final += 360;
@@ -369,7 +390,7 @@
     $('#result .card').innerHTML = '<div class="emoji">' + (win ? '🎉' : '🙂') + '</div><h2>' + (win ? '¡Ganaste!' : esc(data.config.loseMessage)) + '</h2><p>' +
       (win ? esc(r.etiqueta) + '<br><br>Presentá tu nombre en caja para retirarlo.' : 'Seguí participando en tu próxima visita.') + '</p>';
     $('#result').classList.add('on'); if (win) confetti();
-    var rl = data.ruleta || {}, pr = (data.premios || []).filter(function (p) { return p.id === r.premioId; })[0];
+    var rl = vista().ruleta || {}, pr = (vista().premios || []).filter(function (p) { return p.id === r.premioId; })[0];
     parar(game.fx);
     game.fx = tocar((pr && pr.sonido) || (win ? rl.sonidoGana : rl.sonidoPierde), false);
     if (game.bg && game.bg.audio) game.bg.audio.volume = game.bg.vol * 0.25;   // el sonido de fondo baja mientras suena el resultado

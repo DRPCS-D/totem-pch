@@ -15,6 +15,7 @@ export function useRuletas() {
     eliminar: (id: string) => ejecutar('deleteRuleta', { id }, 'No se pudo borrar la ruleta.'),
     ajustes: (id: string, a: Pick<Ruleta, 'fondo' | 'sonidoFondo' | 'sonidoGana' | 'sonidoPierde'>) =>
       ejecutar('ajustesRuleta', { id, ...a }, 'No se pudieron guardar el fondo y los sonidos.'),
+    elegible: (id: string, elegible: boolean) => ejecutar('elegibleRuleta', { id, elegible }, 'No se pudo cambiar la disponibilidad.'),
     activar: (id: string) => ejecutar('activarRuleta', { id }, 'No se pudo activar la ruleta.'),
   }
 }
