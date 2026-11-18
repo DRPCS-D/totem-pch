@@ -501,6 +501,16 @@ export default function RuletaPage() {
               <Field label="Mensaje cuando no gana"><Input value={draft.loseMessage} onChange={(e) => set('loseMessage', e.target.value)} maxLength={80} /></Field>
               <Field label="Giros máximos por teléfono" hint="0 = ilimitado."><Input type="number" min={0} value={draft.maxSpins} onChange={(e) => set('maxSpins', Number(e.target.value))} /></Field>
             </div>
+            <div className="space-y-1">
+              <Check
+                label="Jugar directo, sin pedir nombre ni teléfono"
+                valor={!draft.askName && !draft.askPhone}
+                onCambiar={(v) => { set('askName', !v); set('askPhone', !v) }}
+              />
+              <p className="pl-6 text-xs text-muted-foreground">
+                La persona toca el ícono y va directo a la ruleta. Sin teléfono no se puede limitar los giros por persona ni contactar a los ganadores. También puedes pedir solo uno de los dos datos:
+              </p>
+            </div>
             <div className="flex flex-wrap gap-6">
               <Check label="Pedir nombre" valor={draft.askName} onCambiar={(v) => set('askName', v)} />
               <Check label="Pedir teléfono" valor={draft.askPhone} onCambiar={(v) => set('askPhone', v)} />

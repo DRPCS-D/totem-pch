@@ -262,7 +262,15 @@
     $('#game').classList.remove('on'); $('#result').classList.remove('on'); hideKb();
     if (pendiente) aplicarContenido(pendiente); else nextAd();   // sigue con el siguiente anuncio
   }
-  $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = closeGame;
+  /* Tras un resultado se vuelve al formulario (o directo a la ruleta si no se piden datos) para la siguiente persona;
+     la ✕ y la inactividad cierran el juego. */
+  function otraJugada() {
+    if (!game.on || game.spinning) return;
+    $('#result').classList.remove('on'); parar(game.fx); game.fx = null;
+    if (game.bg && game.bg.audio) game.bg.audio.volume = game.bg.vol;
+    game.data = { name: '', phone: '' }; hideKb(); renderForm(); resetIdle();
+  }
+  $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = otraJugada;
 
   /* Acceso al panel: 5 toques en la esquina superior izquierda (zona invisible, donde va el logo) */
   var taps = 0, tapT;
@@ -394,7 +402,7 @@
     parar(game.fx);
     game.fx = tocar((pr && pr.sonido) || (win ? rl.sonidoGana : rl.sonidoPierde), false);
     if (game.bg && game.bg.audio) game.bg.audio.volume = game.bg.vol * 0.25;   // el sonido de fondo baja mientras suena el resultado
-    clearTimeout(game.idleT); game.idleT = setTimeout(closeGame, 9000);
+    clearTimeout(game.idleT); game.idleT = setTimeout(otraJugada, 9000);
   }
   function confetti() {
     var cols = ['#d91571', '#008fca', '#f5a43b', '#0a021c', '#ffffff'];
