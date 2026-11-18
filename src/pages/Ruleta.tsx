@@ -1,20 +1,23 @@
-import { Copy, Pencil, Plus, Trash2, Zap } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Copy, ImagePlus, Pencil, Plus, Trash2, Zap } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { ErrorBox } from '@/components/ui/estado'
+import { SonidoField } from '@/components/ui/sonido-field'
 import { Field, Input, Select } from '@/components/ui/field'
 import { ConfirmModal, Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfig } from '@/hooks/useConfig'
+import { useForzarActualizacion } from '@/hooks/useTabla'
+import { subirImagen } from '@/lib/imagen'
 import { usePremios, type DatosPremio } from '@/hooks/usePremios'
 import { useRuletas } from '@/hooks/useRuletas'
 import { cn } from '@/lib/utils'
 import { CONFIG_DEFECTO, type ConfigTotem, type Premio, type Ruleta } from '@/lib/tipos'
 
-const PREMIO_VACIO: DatosPremio = { etiqueta: '', color: '#3b82f6', peso: 10, stock: -1, gana: true, activo: true }
+const PREMIO_VACIO: DatosPremio = { etiqueta: '', color: '#3b82f6', peso: 10, stock: -1, gana: true, activo: true, sonido: '' }
 
 function Check({ label, valor, onCambiar }: { label: string; valor: boolean; onCambiar: (v: boolean) => void }) {
   return (
@@ -44,7 +47,7 @@ function PremioModal({
 
   useEffect(() => {
     if (!abierto) return
-    setD(premio ? { etiqueta: premio.etiqueta, color: premio.color, peso: premio.peso, stock: premio.stock, gana: premio.gana, activo: premio.activo } : PREMIO_VACIO)
+    setD(premio ? { etiqueta: premio.etiqueta, color: premio.color, peso: premio.peso, stock: premio.stock, gana: premio.gana, activo: premio.activo, sonido: premio.sonido ?? '' } : PREMIO_VACIO)
     setError(null)
   }, [abierto, premio])
 
@@ -94,6 +97,9 @@ function PremioModal({
           <Check label="Es un premio (no «Sigue intentando»)" valor={d.gana} onCambiar={(v) => set('gana', v)} />
           <Check label="Activo" valor={d.activo} onCambiar={(v) => set('activo', v)} />
         </div>
+        <Field label="Sonido propio (opcional)" hint="Suena cuando la ruleta cae en este premio. Si lo dejas vacío se usa el sonido de ganar o de perder de la ruleta.">
+          <SonidoField value={d.sonido} onChange={(v) => set('sonido', v)} />
+        </Field>
         {error && <ErrorBox mensaje={error} />}
       </div>
     </Modal>
@@ -179,6 +185,94 @@ function RuletaModal({
   )
 }
 
+/* ───────────────────────── Fondo y sonidos de una ruleta ───────────────────────── */
+
+type Media = Pick<Ruleta, 'fondo' | 'sonidoFondo' | 'sonidoGana' | 'sonidoPierde'>
+
+function AjustesMedia({ ruleta, guardarAjustes, alGuardar }: {
+  ruleta: Ruleta
+  guardarAjustes: ReturnType<typeof useRuletas>['ajustes']
+  alGuardar: () => void
+}) {
+  const desdeServidor: Media = { fondo: ruleta.fondo ?? '', sonidoFondo: ruleta.sonidoFondo ?? '', sonidoGana: ruleta.sonidoGana ?? '', sonidoPierde: ruleta.sonidoPierde ?? '' }
+  const [m, setM] = useState<Media>(desdeServidor)
+  const [sucio, setSucio] = useState(false)
+  const [subiendo, setSubiendo] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const archivo = useRef<HTMLInputElement>(null)
+  const firma = JSON.stringify(desdeServidor)
+
+  useEffect(() => {
+    if (!sucio) setM(JSON.parse(firma))
+  }, [firma, sucio])
+
+  const set = <K extends keyof Media>(k: K, v: string) => {
+    setM((x) => ({ ...x, [k]: v }))
+    setSucio(true)
+  }
+
+  async function onFondo(f: File | undefined) {
+    if (!f) return
+    setSubiendo(true)
+    setError(null)
+    try {
+      set('fondo', await subirImagen(f))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo subir la imagen.')
+    }
+    setSubiendo(false)
+    if (archivo.current) archivo.current.value = ''
+  }
+
+  async function guardar() {
+    setGuardando(true)
+    const { error: err } = await guardarAjustes(ruleta.id, m)
+    setGuardando(false)
+    if (err) return toast.error(err)
+    toast.success('Fondo y sonidos guardados.')
+    setSucio(false)
+    alGuardar()
+  }
+
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <h2 className="text-sm font-semibold text-foreground">Fondo y sonidos de «{ruleta.nombre}»</h2>
+        <Button size="sm" onClick={guardar} disabled={!sucio || guardando || subiendo}>{guardando ? 'Guardando…' : 'Guardar'}</Button>
+      </div>
+      <div className="grid gap-5 p-5 lg:grid-cols-[auto_1fr]">
+        <Field label="Imagen de fondo" hint="Vertical 1080×1920 ideal. Se ve detrás del formulario y la ruleta.">
+          <input ref={archivo} type="file" accept="image/*" hidden onChange={(e) => onFondo(e.target.files?.[0])} />
+          <div className="flex items-end gap-3">
+            {m.fondo ? (
+              <img src={m.fondo} alt="" className="h-40 w-[90px] rounded-md border border-border object-cover" />
+            ) : (
+              <div className="flex h-40 w-[90px] items-center justify-center rounded-md border border-dashed border-input text-muted-foreground"><ImagePlus className="size-5" /></div>
+            )}
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" size="sm" onClick={() => archivo.current?.click()} disabled={subiendo}>{subiendo ? 'Subiendo…' : m.fondo ? 'Cambiar' : 'Subir imagen'}</Button>
+              {m.fondo && <Button variant="ghost" size="sm" onClick={() => set('fondo', '')} disabled={subiendo}>Quitar</Button>}
+            </div>
+          </div>
+        </Field>
+        <div className="space-y-4">
+          <Field label="Sonido de fondo" hint="Suena en bucle mientras alguien juega (formulario y giro). Se detiene al terminar.">
+            <SonidoField value={m.sonidoFondo} onChange={(v) => set('sonidoFondo', v)} />
+          </Field>
+          <Field label="Sonido al ganar" hint="Para los premios que no tienen sonido propio.">
+            <SonidoField value={m.sonidoGana} onChange={(v) => set('sonidoGana', v)} />
+          </Field>
+          <Field label="Sonido al perder / «Sigue intentando»" hint="Para las casillas sin premio que no tienen sonido propio.">
+            <SonidoField value={m.sonidoPierde} onChange={(v) => set('sonidoPierde', v)} />
+          </Field>
+        </div>
+      </div>
+      {error && <div className="px-5 pb-4"><ErrorBox mensaje={error} /></div>}
+    </section>
+  )
+}
+
 /* ───────────────────────── Página ───────────────────────── */
 
 export default function RuletaPage() {
@@ -226,6 +320,7 @@ export default function RuletaPage() {
     const { error } = await cfg.guardar({
       raffleEnabled: draft.raffleEnabled, raffleTitle: draft.raffleTitle, raffleSubtitle: draft.raffleSubtitle,
       maxSpins: draft.maxSpins, askName: draft.askName, askPhone: draft.askPhone, loseMessage: draft.loseMessage,
+      gameSound: draft.gameSound, gameVolume: draft.gameVolume,
     })
     setGuardando(false)
     if (error) return toast.error(error, { duration: 15000 })
@@ -235,6 +330,15 @@ export default function RuletaPage() {
   }
 
   const apsViejo = ruletas.error?.includes('Acción desconocida')
+
+  // Los datos se guardan en el navegador y publicar un Code.gs nuevo no los invalida: si faltan los campos nuevos
+  // se baja todo una vez antes de dar el backend por desactualizado.
+  const { forzar } = useForzarActualizacion()
+  const [verificado, setVerificado] = useState(false)
+  const sinMedia = ruletas.data.length > 0 && !('fondo' in ruletas.data[0])
+  useEffect(() => {
+    if (sinMedia && !verificado) void forzar().finally(() => setVerificado(true))
+  }, [sinMedia, verificado, forzar])
 
   return (
     <div className="space-y-6">
@@ -295,6 +399,17 @@ export default function RuletaPage() {
           )}
         </div>
       </section>
+
+      {sinMedia && verificado && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground">
+          Tu Apps Script está desactualizado y no guarda el fondo ni los sonidos. Pega el Code.gs nuevo y publica una nueva versión
+          (Implementar → Administrar implementaciones → editar → Nueva versión).
+        </div>
+      )}
+
+      {seleccionada && !sinMedia && (
+        <AjustesMedia key={seleccionada.id} ruleta={seleccionada} guardarAjustes={ruletas.ajustes} alGuardar={() => ruletas.refetch()} />
+      )}
 
       {/* ── Premios de la ruleta elegida ── */}
       {seleccionada && (
@@ -373,6 +488,12 @@ export default function RuletaPage() {
             <div className="flex flex-wrap gap-6">
               <Check label="Pedir nombre" valor={draft.askName} onCambiar={(v) => set('askName', v)} />
               <Check label="Pedir teléfono" valor={draft.askPhone} onCambiar={(v) => set('askPhone', v)} />
+            </div>
+            <div className="flex flex-wrap items-end gap-6">
+              <Check label="Sonidos del juego activados" valor={draft.gameSound} onCambiar={(v) => set('gameSound', v)} />
+              <Field label="Volumen de los sonidos (0–100)" hint="Aplica al sonido de fondo y a los de ganar / perder.">
+                <Input type="number" min={0} max={100} className="max-w-32" value={draft.gameVolume} onChange={(e) => set('gameVolume', Math.min(100, Math.max(0, Number(e.target.value))))} />
+              </Field>
             </div>
             <div className="flex justify-end">
               <Button onClick={guardar} disabled={!sucio || guardando}>{guardando ? 'Guardando…' : 'Guardar ajustes'}</Button>

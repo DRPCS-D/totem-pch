@@ -19,6 +19,8 @@ Roles: **admin** (todo, incluye usuarios) y **editor** (anuncios, ruleta, partic
 
 **Ruletas (plantillas de premios):** en *Ruleta* puedes crear varias ruletas, cada una con sus propios premios (por ejemplo «Navidad», «Día del niño»), duplicarlas, renombrarlas y elegir **con un clic cuál está activa**: esa es la que muestra el totem y la que usa el sorteo. Una ruleta inactiva se puede editar con calma sin que el totem la vea. La hoja `Participantes` guarda con qué ruleta jugó cada persona. Las hojas anteriores se migran solas: sus premios pasan a «Ruleta principal».
 
+**Fondo y sonidos:** cada ruleta tiene su propia **imagen de fondo** (vertical 1080×1920 ideal), un **sonido de fondo** en bucle mientras se juega, y un sonido **al ganar** y otro **al perder / «Sigue intentando»**. Además cada premio puede tener un **sonido propio** que reemplaza al de la ruleta. Los audios (MP3, WAV, OGG o M4A, máx. 8 MB) se suben desde el panel a la carpeta «Totem PCH» de tu Drive; el totem los baja a través del Apps Script, los guarda en su caché y los reproduce también sin internet. Volumen y activar/desactivar en *Ruleta → Ajustes del juego*. Al quitar o cambiar un sonido, el archivo viejo queda en Drive (bórralo a mano si quieres).
+
 ## 1. Backend (Google Sheets + Apps Script)
 
 1. Crea una hoja de cálculo nueva en Google Sheets.

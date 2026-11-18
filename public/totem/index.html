@@ -67,6 +67,12 @@
   #game { position:absolute; inset:0; z-index:30; background:var(--bg); display:none; flex-direction:column; align-items:center; padding:120px 60px 60px; }
   #game::before { content:''; position:absolute; left:0; right:0; top:0; height:440px; background:var(--primary); }
   #game > * { position:relative; }
+  /* Ruleta con imagen de fondo propia: se oscurece solo la parte superior para que se lea el título */
+  #game.con-fondo { background-size:cover; background-position:center; background-repeat:no-repeat; }
+  #game.con-fondo::before { height:560px; background:linear-gradient(#0a021cf2, #0a021c00); }
+  #game.con-fondo .sub { text-shadow:0 2px 10px #0a021c99; }
+  #game.con-fondo .field label { color:#fff; text-shadow:0 2px 8px #0a021ccc; }
+  #game.con-fondo .err { color:#fecaca; text-shadow:0 2px 8px #0a021ccc; }
   #game.on { display:flex; }
   #game h1 { font-size:88px; font-weight:800; text-align:center; color:#fff; line-height:1.1; }
   #game .sub { font-size:44px; color:#fff; opacity:.95; margin:16px 0 96px; text-align:center; }

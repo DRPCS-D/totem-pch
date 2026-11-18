@@ -33,8 +33,8 @@ var SHEET_USUARIOS = 'Usuarios';
 var SHEET_RULETAS = 'Ruletas';
 
 var COL_ANU = { id: 0, tipo: 1, titulo: 2, subtitulo: 3, precio: 4, color: 5, src: 6, duracion: 7, activo: 8, desde: 9, hasta: 10, orden: 11, nombre: 12 };
-var COL_PRE = { id: 0, etiqueta: 1, color: 2, peso: 3, stock: 4, gana: 5, activo: 6, ruletaId: 7 };
-var COL_RUL = { id: 0, nombre: 1, activa: 2 };
+var COL_PRE = { id: 0, etiqueta: 1, color: 2, peso: 3, stock: 4, gana: 5, activo: 6, ruletaId: 7, sonido: 8 };
+var COL_RUL = { id: 0, nombre: 1, activa: 2, fondo: 3, sonidoFondo: 4, sonidoGana: 5, sonidoPierde: 6 };
 var COL_PAR = { id: 0, fecha: 1, nombre: 2, telefono: 3, premio: 4, gano: 5, entregado: 6, ruleta: 7 };
 var COL_USR = { usuario: 0, password: 1, rol: 2, activo: 3, nombre: 4 };
 
@@ -55,6 +55,8 @@ var CONFIG_DEFECTO = {
   idleSeconds: 45,
   videoSound: true,
   videoVolume: 100,
+  gameSound: true,
+  gameVolume: 80,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',
   raffleSubtitle: 'Completá tus datos y probá tu suerte',
@@ -83,6 +85,7 @@ function doPost(e) {
       case 'totemRev':          return handleTotemRev_();
       case 'girar':             return handleGirar_(body);
       case 'totemVideo':        return handleTotemVideo_(body);
+      case 'totemAudio':        return handleTotemAudio_(body);
       // Panel
       case 'login':             return handleLogin_(body);
       case 'getRevisions':      return handleGetRevisions_(body);
@@ -99,6 +102,8 @@ function doPost(e) {
       case 'updateRuleta':      return handleUpdateRuleta_(body);
       case 'deleteRuleta':      return handleDeleteRuleta_(body);
       case 'activarRuleta':     return handleActivarRuleta_(body);
+      case 'ajustesRuleta':     return handleAjustesRuleta_(body);
+      case 'subirSonido':       return handleSubirSonido_(body);
       case 'listPremios':       return handleListPremios_(body);
       case 'createPremio':      return handleSavePremio_(body, true);
       case 'updatePremio':      return handleSavePremio_(body, false);
@@ -250,15 +255,17 @@ function handleTotemRev_() {
 function handleTotemConfig_() {
   var r = revisionesActuales_();
   var anuncios = leerAnuncios_().filter(function (a) { return a.activo; });
-  var premios = leerPremios_(ruletaActiva_().id).filter(function (p) { return p.activo; }).map(function (p) {
-    return { id: p.id, etiqueta: p.etiqueta, color: p.color, gana: p.gana };
+  var activa = ruletaActiva_();
+  var premios = leerPremios_(activa.id).filter(function (p) { return p.activo; }).map(function (p) {
+    return { id: p.id, etiqueta: p.etiqueta, color: p.color, gana: p.gana, sonido: p.sonido };
   });
   return jsonOut_({
     ok: true,
     rev: r.config + '.' + r.anuncios + '.' + r.premios,
     config: leerConfig_(),
     anuncios: anuncios,
-    premios: premios
+    premios: premios,
+    ruleta: { nombre: activa.nombre, fondo: activa.fondo, sonidoFondo: activa.sonidoFondo, sonidoGana: activa.sonidoGana, sonidoPierde: activa.sonidoPierde }
   });
 }
 
@@ -502,7 +509,8 @@ function rowToPremio_(row) {
     stock: stock === '' || isNaN(Number(stock)) ? -1 : Number(stock),
     gana: esActivo_(row[COL_PRE.gana]),
     activo: esActivo_(row[COL_PRE.activo]),
-    ruletaId: String(row[COL_PRE.ruletaId] || '').trim()
+    ruletaId: String(row[COL_PRE.ruletaId] || '').trim(),
+    sonido: String(row[COL_PRE.sonido] || '').trim()
   };
 }
 
@@ -534,17 +542,18 @@ function handleSavePremio_(body, crear) {
   var stock = Number(body.stock);
   if (isNaN(stock) || stock < -1) throw new Error('El stock debe ser -1 (ilimitado) o mayor.');
   var ruletaId = String(body.ruletaId || '').trim();
+  var sonido = validarSonido_(body.sonido);
   if (crear && !ruletaPorId_(leerRuletas_(), ruletaId)) throw new Error('La ruleta no existe.');
   return conLock_(function () {
     var sheet = getSheet_(SHEET_PREMIOS);
     var datos = function (id, rid) {
-      return [id, etiqueta, String(body.color || '#3b82f6').slice(0, 9), peso, stock, body.gana !== false, body.activo !== false, rid];
+      return [id, etiqueta, String(body.color || '#3b82f6').slice(0, 9), peso, stock, body.gana !== false, body.activo !== false, rid, sonido];
     };
     if (crear) sheet.appendRow(datos(Utilities.getUuid().slice(0, 8), ruletaId));
     else {
       var f = filaPorId_(sheet, COL_PRE.id, body.id);
       if (!f) throw new Error('El premio ya no existe.');
-      sheet.getRange(f.indice, 1, 1, 8).setValues([datos(f.valores[COL_PRE.id], String(f.valores[COL_PRE.ruletaId] || '').trim())]);
+      sheet.getRange(f.indice, 1, 1, 9).setValues([datos(f.valores[COL_PRE.id], String(f.valores[COL_PRE.ruletaId] || '').trim())]);
     }
     bumpRevision_('premios');
     return jsonOut_({ ok: true });
@@ -585,12 +594,14 @@ function asegurarRuletas_() {
   var hoja = ss.getSheetByName(SHEET_RULETAS);
   if (!hoja) {
     hoja = ss.insertSheet(SHEET_RULETAS);
-    hoja.getRange(1, 1, 1, 3).setValues([ENCABEZADOS.Ruletas]).setFontWeight('bold').setBackground('#e8eaf6');
+    hoja.getRange(1, 1, 1, ENCABEZADOS.Ruletas.length).setValues([ENCABEZADOS.Ruletas]).setFontWeight('bold').setBackground('#e8eaf6');
     hoja.setFrozenRows(1);
     hoja.getRange(2, COL_RUL.activa + 1, 100, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   }
   var pre = getSheet_(SHEET_PREMIOS);
   encabezadoSiFalta_(pre, COL_PRE.ruletaId + 1, 'ruletaId');
+  encabezadoSiFalta_(pre, COL_PRE.sonido + 1, 'sonido');
+  ['fondo', 'sonidoFondo', 'sonidoGana', 'sonidoPierde'].forEach(function (k) { encabezadoSiFalta_(hoja, COL_RUL[k] + 1, k); });
   encabezadoSiFalta_(getSheet_(SHEET_PARTICIPANTES), COL_PAR.ruleta + 1, 'ruleta');
 
   var rows = hoja.getDataRange().getValues(), activaId = '', primeraId = '', primeraFila = 0;
@@ -634,6 +645,10 @@ function leerRuletas_() {
       id: id,
       nombre: String(rows[i][COL_RUL.nombre] || ''),
       activa: esActivo_(rows[i][COL_RUL.activa]),
+      fondo: String(rows[i][COL_RUL.fondo] || '').trim(),
+      sonidoFondo: String(rows[i][COL_RUL.sonidoFondo] || '').trim(),
+      sonidoGana: String(rows[i][COL_RUL.sonidoGana] || '').trim(),
+      sonidoPierde: String(rows[i][COL_RUL.sonidoPierde] || '').trim(),
       premios: premios.filter(function (p) { return p.ruletaId === id && p.activo; }).length
     });
   }
@@ -673,14 +688,15 @@ function handleCreateRuleta_(body) {
   if (copiarDe && !ruletaPorId_(lista, copiarDe)) throw new Error('La ruleta a copiar ya no existe.');
   return conLock_(function () {
     var id = Utilities.getUuid().slice(0, 8);
-    getSheet_(SHEET_RULETAS).appendRow([id, nombre, false]);
+    var origenR = copiarDe ? ruletaPorId_(lista, copiarDe) : null;
+    getSheet_(SHEET_RULETAS).appendRow([id, nombre, false, origenR ? origenR.fondo : '', origenR ? origenR.sonidoFondo : '', origenR ? origenR.sonidoGana : '', origenR ? origenR.sonidoPierde : '']);
     if (copiarDe) {
       var filas = leerPremios_(copiarDe).map(function (p) {
-        return [Utilities.getUuid().slice(0, 8), p.etiqueta, p.color, p.peso, p.stock, p.gana, p.activo, id];
+        return [Utilities.getUuid().slice(0, 8), p.etiqueta, p.color, p.peso, p.stock, p.gana, p.activo, id, p.sonido];
       });
       if (filas.length) {
         var pre = getSheet_(SHEET_PREMIOS);
-        pre.getRange(pre.getLastRow() + 1, 1, filas.length, 8).setValues(filas);
+        pre.getRange(pre.getLastRow() + 1, 1, filas.length, 9).setValues(filas);
         bumpRevision_('premios');
       }
     }
@@ -744,6 +760,73 @@ function handleActivarRuleta_(body) {
     bumpRevision_('premios');   // el totem detecta el cambio de ruleta con esta revisión
     return jsonOut_({ ok: true });
   });
+}
+
+// ---------- Sonidos e imagen de fondo de cada ruleta ----------
+// Los sonidos se guardan como "https://drive.google.com/file/d/ID/view|nombre.mp3" (url + nombre original).
+// Se suben a Drive (carpeta «Totem PCH») y el totem los pide a este script (totemAudio), que solo entrega
+// archivos referenciados por una ruleta o un premio.
+
+var MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+
+function validarSonido_(valor) {
+  var v = String(valor || '').trim();
+  if (!v) return '';
+  if (v.length > 400) throw new Error('Sonido inválido.');
+  if (!driveIdDe_(v.split('|')[0])) throw new Error('Sonido inválido.');
+  return v;
+}
+
+function handleAjustesRuleta_(body) {
+  requireAuth_(body);
+  var r = ruletaPorId_(leerRuletas_(), body.id);
+  if (!r) throw new Error('La ruleta ya no existe.');
+  var fondo = String(body.fondo || '').trim();
+  if (fondo && !/^https:\/\//.test(fondo)) throw new Error('Imagen de fondo inválida.');
+  if (fondo.length > 500) throw new Error('Imagen de fondo inválida.');
+  var valores = [fondo, validarSonido_(body.sonidoFondo), validarSonido_(body.sonidoGana), validarSonido_(body.sonidoPierde)];
+  return conLock_(function () {
+    var hoja = getSheet_(SHEET_RULETAS);
+    var f = filaPorId_(hoja, COL_RUL.id, r.id);
+    hoja.getRange(f.indice, COL_RUL.fondo + 1, 1, 4).setValues([valores]);
+    bumpRevision_('ruletas');
+    bumpRevision_('premios');   // el totem detecta el cambio con esta revisión
+    return jsonOut_({ ok: true });
+  });
+}
+
+/** Guarda un audio (base64) en Drive y devuelve su enlace. */
+function handleSubirSonido_(body) {
+  requireAuth_(body);
+  var mime = String(body.mime || '').toLowerCase();
+  if (!/^audio\/(mpeg|mp3|mp4|x-m4a|m4a|aac|ogg|wav|x-wav|wave|webm)$/.test(mime)) throw new Error('Formato de audio no permitido (usa MP3, WAV, OGG o M4A).');
+  var datos = String(body.base64 || '');
+  if (!datos || datos.length > MAX_AUDIO_BYTES * 1.4) throw new Error('El audio está vacío o pesa más de 8 MB.');
+  var bytes = Utilities.base64Decode(datos);
+  if (bytes.length > MAX_AUDIO_BYTES) throw new Error('El audio pesa más de 8 MB.');
+  var carpetas = DriveApp.getFoldersByName('Totem PCH');
+  var carpeta = carpetas.hasNext() ? carpetas.next() : DriveApp.createFolder('Totem PCH');
+  var archivo = carpeta.createFile(Utilities.newBlob(bytes, mime, 'sonido-' + Date.now()));
+  return jsonOut_({ ok: true, url: 'https://drive.google.com/file/d/' + archivo.getId() + '/view' });
+}
+
+function idsSonidoPermitidos_() {
+  var ids = {};
+  var agregar = function (v) { var i = driveIdDe_(String(v || '').split('|')[0]); if (i) ids[i] = 1; };
+  leerRuletas_().forEach(function (r) { agregar(r.sonidoFondo); agregar(r.sonidoGana); agregar(r.sonidoPierde); });
+  leerPremios_().forEach(function (p) { agregar(p.sonido); });
+  return ids;
+}
+
+/** Entrega al totem (y a la vista previa del panel) un audio de Drive en base64. Público, pero solo de archivos en uso. */
+function handleTotemAudio_(body) {
+  var id = String(body.id || '');
+  if (!/^[\w-]{10,}$/.test(id)) throw new Error('Sonido inválido.');
+  if (!idsSonidoPermitidos_()[id]) throw new Error('Ese sonido no está en uso.');
+  var archivo = DriveApp.getFileById(id);
+  if (archivo.getSize() > MAX_AUDIO_BYTES) throw new Error('El audio pesa más de 8 MB.');
+  var blob = archivo.getBlob();
+  return jsonOut_({ ok: true, mime: blob.getContentType() || 'audio/mpeg', base64: Utilities.base64Encode(blob.getBytes()) });
 }
 
 // ---------- Participantes ----------
@@ -885,8 +968,8 @@ function handleCambiarMiPassword_(body) {
 var ENCABEZADOS = {
   Config: ['clave', 'valor'],
   Anuncios: ['id', 'tipo', 'titulo', 'subtitulo', 'precio', 'color', 'src', 'duracion', 'activo', 'desde', 'hasta', 'orden', 'nombre'],
-  Ruletas: ['id', 'nombre', 'activa'],
-  Premios: ['id', 'etiqueta', 'color', 'peso', 'stock', 'gana', 'activo', 'ruletaId'],
+  Ruletas: ['id', 'nombre', 'activa', 'fondo', 'sonidoFondo', 'sonidoGana', 'sonidoPierde'],
+  Premios: ['id', 'etiqueta', 'color', 'peso', 'stock', 'gana', 'activo', 'ruletaId', 'sonido'],
   Participantes: ['id', 'fecha', 'nombre', 'telefono', 'premio', 'gano', 'entregado', 'ruleta'],
   Usuarios: ['usuario', 'password', 'rol', 'activo', 'nombre']
 };

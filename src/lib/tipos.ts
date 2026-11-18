@@ -42,11 +42,19 @@ export interface Ruleta {
   activa: boolean
   /** Cantidad de premios activos. */
   premios: number
+  /** Imagen de fondo de la pantalla del sorteo (URL). */
+  fondo: string
+  /** Sonidos («enlace de Drive|nombre»): de fondo mientras se juega, al ganar y al perder. */
+  sonidoFondo: string
+  sonidoGana: string
+  sonidoPierde: string
 }
 
 export interface Premio {
   id: string
   ruletaId: string
+  /** Sonido propio (opcional); si falta se usa el de la ruleta (ganar / perder). */
+  sonido: string
   etiqueta: string
   color: string
   peso: number
@@ -82,6 +90,8 @@ export interface ConfigTotem {
   idleSeconds: number
   videoSound: boolean
   videoVolume: number
+  gameSound: boolean
+  gameVolume: number
   raffleEnabled: boolean
   raffleTitle: string
   raffleSubtitle: string
@@ -105,6 +115,8 @@ export const CONFIG_DEFECTO: ConfigTotem = {
   idleSeconds: 45,
   videoSound: true,
   videoVolume: 100,
+  gameSound: true,
+  gameVolume: 80,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',
   raffleSubtitle: 'Completá tus datos y probá tu suerte',

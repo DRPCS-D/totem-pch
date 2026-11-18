@@ -14,7 +14,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   var DEF = {
-    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
     anuncios: [], premios: [], rev: ''
   };
   var data = DEF, pendiente = null;
@@ -37,7 +37,7 @@
 
   function descargar() {
     return api('totemConfig').then(function (j) {
-      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, rev: j.rev };
+      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, ruleta: j.ruleta || {}, rev: j.rev };
       guardarCache(d); setOffline(false); aplicarContenido(d);
     }).catch(function () { setOffline(true); });
   }
@@ -85,35 +85,52 @@
   }
   /* Videos de Drive: el servidor los entrega (Apps Script), se guardan en caché del navegador
      y se reproducen desde ahí: arrancan solos, avisan cuándo terminan y funcionan sin internet. */
-  var VCACHE = 'totem-pch-videos', vurls = {}, vbajando = {};
-  var vkey = function (id) { return '/__video/' + id; };
-  function videoURL(id) {
-    if (vurls[id]) return Promise.resolve(vurls[id]);
-    if (vbajando[id]) return vbajando[id];
-    var p = (window.caches ? caches.open(VCACHE).then(function (c) { return c.match(vkey(id)); }).catch(function () { return null; }) : Promise.resolve(null))
+  var VCACHE = 'totem-pch-videos', murls = {}, mbajando = {};
+  /* Medios de Drive (videos y sonidos): los entrega el Apps Script, se guardan en caché y se usan desde ahí. */
+  function mediaURL(tipo, accion, id) {
+    var k = '/__' + tipo + '/' + id;
+    if (murls[k]) return Promise.resolve(murls[k]);
+    if (mbajando[k]) return mbajando[k];
+    var p = (window.caches ? caches.open(VCACHE).then(function (c) { return c.match(k); }).catch(function () { return null; }) : Promise.resolve(null))
       .then(function (r) { return r ? r.blob() : null; })
       .then(function (blob) {
         if (blob) return blob;
-        return api('totemVideo', { id: id }, 240000).then(function (j) {
+        return api(accion, { id: id }, 240000).then(function (j) {
           var bin = atob(j.base64), u8 = new Uint8Array(bin.length);
           for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-          var b = new Blob([u8], { type: j.mime || 'video/mp4' });
-          if (window.caches) caches.open(VCACHE).then(function (c) { return c.put(vkey(id), new Response(b, { headers: { 'Content-Type': b.type } })); }).catch(function () {});
+          var b = new Blob([u8], { type: j.mime || (tipo === 'audio' ? 'audio/mpeg' : 'video/mp4') });
+          if (window.caches) caches.open(VCACHE).then(function (c) { return c.put(k, new Response(b, { headers: { 'Content-Type': b.type } })); }).catch(function () {});
           return b;
         });
       })
-      .then(function (blob) { vurls[id] = URL.createObjectURL(blob); return vurls[id]; });
-    vbajando[id] = p;
-    p.then(function () { delete vbajando[id]; }, function () { delete vbajando[id]; });
+      .then(function (blob) { murls[k] = URL.createObjectURL(blob); return murls[k]; });
+    mbajando[k] = p;
+    p.then(function () { delete mbajando[k]; }, function () { delete mbajando[k]; });
     return p;
   }
-  /* Baja en segundo plano los videos de los anuncios (uno por uno) y borra del caché los que ya no se usan. */
+  function videoURL(id) { return mediaURL('video', 'totemVideo', id); }
+  function audioURL(id) { return mediaURL('audio', 'totemAudio', id); }
+  /* Un sonido se guarda como «enlace de Drive|nombre»: aquí solo importa el id del archivo. */
+  function sonidoId(v) { return driveId(String(v || '').split('|')[0]); }
+
+  /* Baja en segundo plano los sonidos y videos en uso (uno por uno) y borra del caché los que ya no se usan. */
   function precargarVideos() {
-    var ids = data.anuncios.filter(function (a) { return a.tipo === 'video' && a.activo !== false; }).map(function (a) { return driveId(a.src); }).filter(Boolean);
+    var vids = data.anuncios.filter(function (a) { return a.tipo === 'video' && a.activo !== false; }).map(function (a) { return driveId(a.src); }).filter(Boolean);
+    var rl = data.ruleta || {}, auds = [];
+    [rl.sonidoFondo, rl.sonidoGana, rl.sonidoPierde].concat((data.premios || []).map(function (p) { return p.sonido; })).forEach(function (v) {
+      var i = sonidoId(v); if (i && auds.indexOf(i) < 0) auds.push(i);
+    });
     if (window.caches) caches.open(VCACHE).then(function (c) {
-      return c.keys().then(function (ks) { ks.forEach(function (k) { var id = k.url.split('/__video/')[1]; if (id && ids.indexOf(id) < 0) c.delete(k); }); });
+      return c.keys().then(function (ks) {
+        ks.forEach(function (k) {
+          var m = /\/__(video|audio)\/(.+)$/.exec(k.url);
+          if (m && (m[1] === 'video' ? vids : auds).indexOf(m[2]) < 0) c.delete(k);
+        });
+      });
     }).catch(function () {});
-    ids.reduce(function (p, id) { return p.then(function () { return videoURL(id).catch(function () {}); }); }, Promise.resolve());
+    if (rl.fondo) { var im = new Image(); im.src = rl.fondo; }   // el service worker guarda la imagen de fondo
+    var cola = auds.map(function (id) { return function () { return audioURL(id); }; }).concat(vids.map(function (id) { return function () { return videoURL(id); }; }));
+    cola.reduce(function (p, f) { return p.then(function () { return f().catch(function () {}); }); }, Promise.resolve());
   }
   /* Sonido: se intenta con audio; si el navegador lo bloquea (aún nadie tocó la pantalla) arranca en silencio
      y se activa con el primer toque. Después de ese toque, los videos siguientes ya suenan solos. */
@@ -178,8 +195,27 @@
     else adTimer = setTimeout(function () { nextAd(); }, seg * n * 1000);
   }
 
+  /* ---------- Sonidos del sorteo: de fondo (bucle), al ganar, al perder o propio de cada premio ---------- */
+  function volumenJuego() {
+    var c = data.config; if (c.gameSound === false) return 0;
+    return Math.min(100, Math.max(0, c.gameVolume == null ? 80 : Number(c.gameVolume) || 0)) / 100;
+  }
+  function tocar(valor, loop) {
+    var id = sonidoId(valor), vol = volumenJuego();
+    if (!id || vol <= 0) return null;
+    var t = { cancelado: false, audio: null, vol: vol };
+    audioURL(id).then(function (u) {
+      if (t.cancelado || !game.on) return;   // el juego se cerró mientras bajaba el audio
+      var a = new Audio(u); a.loop = !!loop; a.volume = vol; t.audio = a;
+      var p = a.play(); if (p && p.catch) p.catch(function () {});
+    }).catch(function () {});
+    return t;
+  }
+  function parar(t) { if (!t) return; t.cancelado = true; if (t.audio) { t.audio.pause(); t.audio = null; } }
+  function pararSonidos() { parar(game.bg); parar(game.fx); game.bg = game.fx = null; }
+
   /* ---------- Juego ---------- */
-  var game = { on: false, idleT: null, data: { name: '', phone: '' }, focus: null, rot: 0, spinning: false };
+  var game = { bg: null, fx: null, on: false, idleT: null, data: { name: '', phone: '' }, focus: null, rot: 0, spinning: false };
   function resetIdle() {
     clearTimeout(game.idleT);
     if (game.on && !game.spinning) game.idleT = setTimeout(closeGame, data.config.idleSeconds * 1000);
@@ -191,9 +227,17 @@
     document.querySelectorAll('#ads video').forEach(function (v) { v.pause(); });
     document.querySelectorAll('#ads iframe').forEach(function (f) { f.remove(); });   // reproductor de Drive: no se puede pausar, se quita
   }
-  function openGame() { game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' }; $('#game').classList.add('on'); renderForm(); resetIdle(); }
+  function openGame() {
+    game.on = true; pausarAnuncios(); game.data = { name: '', phone: '' };
+    var rl = data.ruleta || {}, g = $('#game');
+    g.style.backgroundImage = rl.fondo ? 'url("' + rl.fondo.replace(/"/g, '%22') + '")' : '';
+    g.classList.toggle('con-fondo', !!rl.fondo);
+    g.classList.add('on'); renderForm(); resetIdle();
+    pararSonidos(); game.bg = tocar(rl.sonidoFondo, true);   // la llamada nace de un toque: el navegador permite el audio
+  }
   function closeGame() {
     game.on = false; game.spinning = false; clearTimeout(game.idleT); $('#closeGame').style.visibility = '';
+    pararSonidos();
     $('#game').classList.remove('on'); $('#result').classList.remove('on'); hideKb();
     if (pendiente) aplicarContenido(pendiente); else nextAd();   // sigue con el siguiente anuncio
   }
@@ -225,7 +269,7 @@
     if (tapsF < 5) return;
     tapsF = 0; aviso('Actualizando…');
     api('totemConfig').then(function (j) {
-      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, rev: j.rev };
+      var d = { config: j.config, anuncios: j.anuncios, premios: j.premios, ruleta: j.ruleta || {}, rev: j.rev };
       guardarCache(d); setOffline(false); aplicarContenido(d); ultimaRev = Date.now(); aviso('Contenido actualizado ✓');
     }).catch(function () { setOffline(true); aviso('No se pudo actualizar'); });
   });
@@ -325,6 +369,10 @@
     $('#result .card').innerHTML = '<div class="emoji">' + (win ? '🎉' : '🙂') + '</div><h2>' + (win ? '¡Ganaste!' : esc(data.config.loseMessage)) + '</h2><p>' +
       (win ? esc(r.etiqueta) + '<br><br>Presentá tu nombre en caja para retirarlo.' : 'Seguí participando en tu próxima visita.') + '</p>';
     $('#result').classList.add('on'); if (win) confetti();
+    var rl = data.ruleta || {}, pr = (data.premios || []).filter(function (p) { return p.id === r.premioId; })[0];
+    parar(game.fx);
+    game.fx = tocar((pr && pr.sonido) || (win ? rl.sonidoGana : rl.sonidoPierde), false);
+    if (game.bg && game.bg.audio) game.bg.audio.volume = game.bg.vol * 0.25;   // el sonido de fondo baja mientras suena el resultado
     clearTimeout(game.idleT); game.idleT = setTimeout(closeGame, 9000);
   }
   function confetti() {
