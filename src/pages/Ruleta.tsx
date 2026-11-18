@@ -516,9 +516,9 @@ export default function RuletaPage() {
               <Check label="Pedir teléfono" valor={draft.askPhone} onCambiar={(v) => set('askPhone', v)} />
             </div>
             <div className="space-y-1">
-              <Check label="Nombre y teléfono opcionales (botón «Jugar sin datos»)" valor={draft.datosOpcionales} onCambiar={(v) => set('datosOpcionales', v)} />
+              <Check label="Nombre y teléfono opcionales" valor={draft.datosOpcionales} onCambiar={(v) => set('datosOpcionales', v)} />
               <p className="pl-6 text-xs text-muted-foreground">
-                El formulario se muestra igual, pero junto al botón «Continuar» aparece «Jugar sin datos» para quien no quiera escribirlos. Quien sí los escribe queda registrado; quien no, aparece sin nombre en Participantes.
+                El formulario se muestra igual, pero se puede tocar el botón sin escribir nada. Quien escribe sus datos queda registrado; quien no, aparece sin nombre en Participantes.
               </p>
             </div>
             <div className="space-y-1">

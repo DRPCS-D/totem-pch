@@ -286,11 +286,9 @@
     body.innerHTML = '<h1>' + esc(c.raffleTitle) + '</h1><div class="sub">' + esc(c.raffleSubtitle) + '</div>' +
       (c.askName ? '<div class="field"><label>Nombre</label><div class="inp" data-f="name"></div></div>' : '') +
       (c.askPhone ? '<div class="field"><label>Teléfono</label><div class="inp" data-f="phone"></div></div>' : '') +
-      '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn" id="go">CONTINUAR</button>' +
-      (c.datosOpcionales ? '<button class="btn sec" id="skip">JUGAR SIN DATOS</button>' : '');
+      '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn" id="go">' + (c.datosOpcionales && !conSelector() ? 'JUGAR' : 'CONTINUAR') + '</button>';
     body.querySelectorAll('.inp').forEach(function (i) { i.onclick = function () { focusField(i.dataset.f); }; });
     $('#go').onclick = submitForm;
-    if ($('#skip')) $('#skip').onclick = function () { game.data = { name: '', phone: '' }; hideKb(); siguientePaso(); };
     if (c.askName) focusField('name'); else if (c.askPhone) focusField('phone');
     paintFields();
     if (!c.askName && !c.askPhone) siguientePaso();

@@ -95,7 +95,7 @@ export interface ConfigTotem {
   gameSound: boolean
   /** El totem deja elegir la ruleta antes de jugar. */
   ruletaSelector: boolean
-  /** Nombre y teléfono se muestran pero no son obligatorios (botón «Jugar sin datos»). */
+  /** Nombre y teléfono se muestran pero no son obligatorios (se puede continuar con los campos vacíos). */
   datosOpcionales: boolean
   gameVolume: number
   raffleEnabled: boolean
