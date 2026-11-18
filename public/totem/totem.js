@@ -14,7 +14,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   var DEF = {
-    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, datosOpcionales: false, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
     anuncios: [], premios: [], rev: ''
   };
   var data = DEF, pendiente = null;
@@ -281,9 +281,11 @@
     body.innerHTML = '<h1>' + esc(c.raffleTitle) + '</h1><div class="sub">' + esc(c.raffleSubtitle) + '</div>' +
       (c.askName ? '<div class="field"><label>Nombre</label><div class="inp" data-f="name"></div></div>' : '') +
       (c.askPhone ? '<div class="field"><label>Teléfono</label><div class="inp" data-f="phone"></div></div>' : '') +
-      '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn" id="go">CONTINUAR</button>';
+      '<div class="err" id="err">' + esc(msg || '') + '</div><button class="btn" id="go">CONTINUAR</button>' +
+      (c.datosOpcionales ? '<button class="btn sec" id="skip">JUGAR SIN DATOS</button>' : '');
     body.querySelectorAll('.inp').forEach(function (i) { i.onclick = function () { focusField(i.dataset.f); }; });
     $('#go').onclick = submitForm;
+    if ($('#skip')) $('#skip').onclick = function () { game.data = { name: '', phone: '' }; hideKb(); renderWheel(); };
     if (c.askName) focusField('name'); else if (c.askPhone) focusField('phone');
     paintFields();
     if (!c.askName && !c.askPhone) renderWheel();
@@ -307,8 +309,9 @@
   function err(m) { var e = $('#err'); if (e) e.textContent = m; }
   function submitForm() {
     var c = data.config, d = game.data;
-    if (c.askName && d.name.trim().length < 2) return err('Ingresá tu nombre');
-    if (c.askPhone && d.phone.replace(/\D/g, '').length < 7) return err('Ingresá un teléfono válido');
+    var op = c.datosOpcionales;   // opcional: vacío vale, pero lo que se escriba debe ser válido
+    if (c.askName && d.name.trim().length < 2 && !(op && !d.name.trim())) return err('Ingresá tu nombre');
+    if (c.askPhone && d.phone.replace(/\D/g, '').length < 7 && !(op && !d.phone.trim())) return err('Ingresá un teléfono válido');
     hideKb(); renderWheel();
   }
 

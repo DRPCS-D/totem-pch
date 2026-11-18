@@ -95,6 +95,8 @@ export interface ConfigTotem {
   gameSound: boolean
   /** El totem deja elegir la ruleta antes de jugar. */
   ruletaSelector: boolean
+  /** Nombre y teléfono se muestran pero no son obligatorios (botón «Jugar sin datos»). */
+  datosOpcionales: boolean
   gameVolume: number
   raffleEnabled: boolean
   raffleTitle: string
@@ -121,6 +123,7 @@ export const CONFIG_DEFECTO: ConfigTotem = {
   videoVolume: 100,
   gameSound: true,
   ruletaSelector: false,
+  datosOpcionales: false,
   gameVolume: 80,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',

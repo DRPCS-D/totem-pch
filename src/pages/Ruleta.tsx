@@ -326,7 +326,7 @@ export default function RuletaPage() {
     const { error } = await cfg.guardar({
       raffleEnabled: draft.raffleEnabled, raffleTitle: draft.raffleTitle, raffleSubtitle: draft.raffleSubtitle,
       maxSpins: draft.maxSpins, askName: draft.askName, askPhone: draft.askPhone, loseMessage: draft.loseMessage,
-      gameSound: draft.gameSound, gameVolume: draft.gameVolume, ruletaSelector: draft.ruletaSelector,
+      gameSound: draft.gameSound, gameVolume: draft.gameVolume, ruletaSelector: draft.ruletaSelector, datosOpcionales: draft.datosOpcionales,
     })
     setGuardando(false)
     if (error) return toast.error(error, { duration: 15000 })
@@ -514,6 +514,12 @@ export default function RuletaPage() {
             <div className="flex flex-wrap gap-6">
               <Check label="Pedir nombre" valor={draft.askName} onCambiar={(v) => set('askName', v)} />
               <Check label="Pedir teléfono" valor={draft.askPhone} onCambiar={(v) => set('askPhone', v)} />
+            </div>
+            <div className="space-y-1">
+              <Check label="Nombre y teléfono opcionales (botón «Jugar sin datos»)" valor={draft.datosOpcionales} onCambiar={(v) => set('datosOpcionales', v)} />
+              <p className="pl-6 text-xs text-muted-foreground">
+                El formulario se muestra igual, pero junto al botón «Continuar» aparece «Jugar sin datos» para quien no quiera escribirlos. Quien sí los escribe queda registrado; quien no, aparece sin nombre en Participantes.
+              </p>
             </div>
             <div className="space-y-1">
               <Check label="Dejar que la persona elija la ruleta en el totem" valor={draft.ruletaSelector} onCambiar={(v) => set('ruletaSelector', v)} />

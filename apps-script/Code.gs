@@ -58,6 +58,7 @@ var CONFIG_DEFECTO = {
   gameSound: true,
   gameVolume: 80,
   ruletaSelector: false,
+  datosOpcionales: false,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',
   raffleSubtitle: 'Completá tus datos y probá tu suerte',
@@ -320,12 +321,14 @@ function handleGirar_(body) {
   var nombre = String(body.nombre || '').trim().slice(0, 60);
   var telefono = String(body.telefono || '').trim().slice(0, 30);
   var digitos = telefono.replace(/\D/g, '');
-  if (cfg.askName && nombre.length < 2) throw new Error('Ingresá tu nombre.');
-  if (cfg.askPhone && digitos.length < 7) throw new Error('Ingresá un teléfono válido.');
+  // Con «datos opcionales» se puede jugar sin nombre ni teléfono (si se escribe algo, igual debe ser válido).
+  var opcional = cfg.datosOpcionales;
+  if (cfg.askName && nombre.length < 2 && !(opcional && !nombre)) throw new Error('Ingresá tu nombre.');
+  if (cfg.askPhone && digitos.length < 7 && !(opcional && !digitos)) throw new Error('Ingresá un teléfono válido.');
 
   return conLock_(function () {
     var sheetP = getSheet_(SHEET_PARTICIPANTES);
-    if (cfg.askPhone && cfg.maxSpins > 0) {
+    if (cfg.askPhone && cfg.maxSpins > 0 && digitos) {
       var filas = sheetP.getDataRange().getValues();
       var usados = 0;
       for (var i = 1; i < filas.length; i++) {
