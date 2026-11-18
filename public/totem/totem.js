@@ -233,7 +233,7 @@
     var g = $('#game');
     g.classList.add('on'); resetIdle(); pararSonidos();
     // Primero los datos; con el selector activo y más de una ruleta disponible, después se elige la ruleta.
-    if (conSelector()) aplicarVista(null); else aplicarVista();
+    aplicarVista(null);
     renderForm();
   }
   function conSelector() { return !!(data.config.ruletaSelector && (data.ruletas || []).length > 1); }
@@ -243,10 +243,15 @@
   function vista() { return game.sel || { id: '', premios: data.premios, ruleta: data.ruleta || {} }; }
   function aplicarVista(sel) {
     if (sel !== undefined) game.sel = sel;
-    var rl = sel === null ? {} : vista().ruleta, g = $('#game');
+    var rl = vista().ruleta, g = $('#game');   // sin ruleta elegida se usa la activa (fondo y música desde el formulario)
     g.style.backgroundImage = rl.fondo ? 'url("' + rl.fondo.replace(/"/g, '%22') + '")' : '';
     g.classList.toggle('con-fondo', !!rl.fondo);
-    pararSonidos(); if (sel !== null) game.bg = tocar(rl.sonidoFondo, true);   // nace de un toque: el navegador permite el audio
+    var id = sonidoId(rl.sonidoFondo) || '';
+    if (id && game.bg && !game.bg.cancelado && game.bgId === id) {   // misma música: sigue sonando sin cortarse
+      parar(game.fx); game.fx = null; if (game.bg.audio) game.bg.audio.volume = game.bg.vol;
+    } else {
+      pararSonidos(); game.bg = tocar(rl.sonidoFondo, true); game.bgId = id;   // nace de un toque: el navegador permite el audio
+    }
   }
   function renderElige() {
     var c = data.config;
