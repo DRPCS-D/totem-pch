@@ -241,12 +241,15 @@
   function siguientePaso() { if (conSelector() && !game.sel) renderElige(); else renderWheel(); }
   /* Ruleta con la que se juega: la elegida en pantalla o la activa. */
   function vista() { return game.sel || { id: '', premios: data.premios, ruleta: data.ruleta || {} }; }
+  /* Dos ruletas con la misma canción (aunque se haya subido dos veces a Drive) cuentan como la misma música:
+     se identifica por el nombre del archivo; así no se corta al pasar de una a otra. */
+  function claveSonido(v) { var n = (String(v || '').split('|')[1] || '').trim().toLowerCase(); return n || sonidoId(v) || ''; }
   function aplicarVista(sel) {
     if (sel !== undefined) game.sel = sel;
     var rl = vista().ruleta, g = $('#game');   // sin ruleta elegida se usa la activa (fondo y música desde el formulario)
     g.style.backgroundImage = rl.fondo ? 'url("' + rl.fondo.replace(/"/g, '%22') + '")' : '';
     g.classList.toggle('con-fondo', !!rl.fondo);
-    var id = sonidoId(rl.sonidoFondo) || '';
+    var id = claveSonido(rl.sonidoFondo);
     if (id && game.bg && !game.bg.cancelado && game.bgId === id) {   // misma música: sigue sonando sin cortarse
       parar(game.fx); game.fx = null; if (game.bg.audio) game.bg.audio.volume = game.bg.vol;
     } else {
@@ -277,7 +280,7 @@
     $('#result').classList.remove('on'); parar(game.fx); game.fx = null;
     if (game.bg && game.bg.audio) game.bg.audio.volume = game.bg.vol;
     game.data = { name: '', phone: '' }; hideKb();
-    if (conSelector()) aplicarVista(null);   // la siguiente persona vuelve a elegir su ruleta
+    if (conSelector()) game.sel = null;   // la siguiente persona vuelve a elegir su ruleta (la música y el fondo siguen como estaban)
     renderForm(); resetIdle();
   }
   $('#cta').onclick = openGame; $('#closeGame').onclick = closeGame; $('#result').onclick = otraJugada;
