@@ -97,6 +97,8 @@ export interface ConfigTotem {
   ruletaSelector: boolean
   /** Nombre y teléfono se muestran pero no son obligatorios (se puede continuar con los campos vacíos). */
   datosOpcionales: boolean
+  /** Música de fondo del juego («enlace de Drive|nombre»): una sola para todas las ruletas. */
+  sonidoFondo: string
   gameVolume: number
   raffleEnabled: boolean
   raffleTitle: string
@@ -124,6 +126,7 @@ export const CONFIG_DEFECTO: ConfigTotem = {
   gameSound: true,
   ruletaSelector: false,
   datosOpcionales: false,
+  sonidoFondo: '',
   gameVolume: 80,
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',

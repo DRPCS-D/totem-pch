@@ -6,7 +6,7 @@ const rev = { config: 1, anuncios: 1, premios: 1, ruletas: 1, participantes: 1, 
 const config = {
   nombre: 'Patachoca', logoText: 'PATACHOCA', logoUrl: 'https://www.patachoca.com.py/assets/patachoca/images/logo.png', primary: '#008fca', accent: '#d91571', showLogo: true, showClock: true,
   ctaText: 'TOCA PARA JUGAR Y GANAR', tickerEnabled: true, tickerText: '¡Bienvenido! · Participá y ganá premios',
-  idleSeconds: 45, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, ruletaSelector: false, datosOpcionales: false, raffleEnabled: true, raffleTitle: '¡GIRÁ LA RULETA!', raffleSubtitle: 'Completá tus datos y probá tu suerte',
+  idleSeconds: 45, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, ruletaSelector: false, datosOpcionales: false, sonidoFondo: '', raffleEnabled: true, raffleTitle: '¡GIRÁ LA RULETA!', raffleSubtitle: 'Completá tus datos y probá tu suerte',
   maxSpins: 1, askName: true, askPhone: true, loseMessage: '¡Gracias por participar!',
 }
 let anuncios = [

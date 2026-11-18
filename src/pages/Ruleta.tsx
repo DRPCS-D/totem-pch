@@ -238,7 +238,7 @@ function AjustesMedia({ ruleta, guardarAjustes, alGuardar }: {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <h2 className="text-sm font-semibold text-foreground">Fondo y sonidos de «{ruleta.nombre}»</h2>
+        <h2 className="text-sm font-semibold text-foreground">Fondo y sonidos al ganar / perder de «{ruleta.nombre}»</h2>
         <Button size="sm" onClick={guardar} disabled={!sucio || guardando || subiendo}>{guardando ? 'Guardando…' : 'Guardar'}</Button>
       </div>
       <div className="grid gap-5 p-5 lg:grid-cols-[auto_1fr]">
@@ -257,9 +257,6 @@ function AjustesMedia({ ruleta, guardarAjustes, alGuardar }: {
           </div>
         </Field>
         <div className="space-y-4">
-          <Field label="Sonido de fondo" hint="Suena en bucle mientras alguien juega (formulario y giro). Se detiene al terminar.">
-            <SonidoField value={m.sonidoFondo} onChange={(v) => set('sonidoFondo', v)} />
-          </Field>
           <Field label="Sonido al ganar" hint="Para los premios que no tienen sonido propio.">
             <SonidoField value={m.sonidoGana} onChange={(v) => set('sonidoGana', v)} />
           </Field>
@@ -326,7 +323,7 @@ export default function RuletaPage() {
     const { error } = await cfg.guardar({
       raffleEnabled: draft.raffleEnabled, raffleTitle: draft.raffleTitle, raffleSubtitle: draft.raffleSubtitle,
       maxSpins: draft.maxSpins, askName: draft.askName, askPhone: draft.askPhone, loseMessage: draft.loseMessage,
-      gameSound: draft.gameSound, gameVolume: draft.gameVolume, ruletaSelector: draft.ruletaSelector, datosOpcionales: draft.datosOpcionales,
+      gameSound: draft.gameSound, gameVolume: draft.gameVolume, ruletaSelector: draft.ruletaSelector, datosOpcionales: draft.datosOpcionales, sonidoFondo: draft.sonidoFondo,
     })
     setGuardando(false)
     if (error) return toast.error(error, { duration: 15000 })
@@ -527,6 +524,9 @@ export default function RuletaPage() {
                 después de los datos, el totem muestra las ruletas marcadas como «Disponible para elegir en el totem» (más la activa). Si solo hay una, juega directo.
               </p>
             </div>
+            <Field label="Música de fondo" hint="Una sola para todas las ruletas: suena en bucle mientras alguien juega (formulario y giro) y no se corta entre jugadas. Se detiene al cerrar el juego.">
+              <SonidoField value={draft.sonidoFondo} onChange={(v) => set('sonidoFondo', v)} />
+            </Field>
             <div className="flex flex-wrap items-end gap-6">
               <Check label="Sonidos del juego activados" valor={draft.gameSound} onCambiar={(v) => set('gameSound', v)} />
               <Field label="Volumen de los sonidos (0–100)" hint="Aplica al sonido de fondo y a los de ganar / perder.">

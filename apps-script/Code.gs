@@ -59,6 +59,7 @@ var CONFIG_DEFECTO = {
   gameVolume: 80,
   ruletaSelector: false,
   datosOpcionales: false,
+  sonidoFondo: '',
   raffleEnabled: true,
   raffleTitle: '¡GIRÁ LA RULETA!',
   raffleSubtitle: 'Completá tus datos y probá tu suerte',
@@ -408,6 +409,7 @@ function handleSaveConfig_(body) {
       if (typeof def === 'boolean') v = v === true;
       else if (typeof def === 'number') v = Math.max(0, Number(v) || 0);
       else v = String(v == null ? '' : v).slice(0, 500);
+      if (k === 'sonidoFondo') v = validarSonido_(v);   // música de fondo del juego (única, vale para todas las ruletas)
       if (fila[k]) sheet.getRange(fila[k], 2).setValue(v);
       else sheet.appendRow([k, v]);
     });
@@ -860,7 +862,8 @@ function handleSubirSonido_(body) {
 function idsSonidoPermitidos_() {
   var ids = {};
   var agregar = function (v) { var i = driveIdDe_(String(v || '').split('|')[0]); if (i) ids[i] = 1; };
-  leerRuletas_().forEach(function (r) { agregar(r.sonidoFondo); agregar(r.sonidoGana); agregar(r.sonidoPierde); });
+  agregar(leerConfig_().sonidoFondo);
+  leerRuletas_().forEach(function (r) { agregar(r.sonidoGana); agregar(r.sonidoPierde); });
   leerPremios_().forEach(function (p) { agregar(p.sonido); });
   return ids;
 }

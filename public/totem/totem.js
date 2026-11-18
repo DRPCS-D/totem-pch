@@ -14,7 +14,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   var DEF = {
-    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, datosOpcionales: false, raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
+    config: { nombre: 'Totem', logoText: '', logoUrl: '', primary: '#008fca', accent: '#d91571', showClock: true, ctaText: 'TOCA PARA JUGAR', tickerEnabled: false, tickerText: '', idleSeconds: 45, showLogo: true, videoSound: true, videoVolume: 100, gameSound: true, gameVolume: 80, datosOpcionales: false, sonidoFondo: '', raffleEnabled: false, raffleTitle: '', raffleSubtitle: '', askName: true, askPhone: true, loseMessage: '' },
     anuncios: [], premios: [], rev: ''
   };
   var data = DEF, pendiente = null;
@@ -116,8 +116,8 @@
   /* Baja en segundo plano los sonidos y videos en uso (uno por uno) y borra del caché los que ya no se usan. */
   function precargarVideos() {
     var vids = data.anuncios.filter(function (a) { return a.tipo === 'video' && a.activo !== false; }).map(function (a) { return driveId(a.src); }).filter(Boolean);
-    var auds = [], fuentes = [data].concat((data.ruletas || []).map(function (x) { return { ruleta: x, premios: x.premios }; })), vals = [];
-    fuentes.forEach(function (f) { var rl = f.ruleta || {}; vals = vals.concat([rl.sonidoFondo, rl.sonidoGana, rl.sonidoPierde], (f.premios || []).map(function (p) { return p.sonido; })); });
+    var auds = [], fuentes = [data].concat((data.ruletas || []).map(function (x) { return { ruleta: x, premios: x.premios }; })), vals = [data.config.sonidoFondo];
+    fuentes.forEach(function (f) { var rl = f.ruleta || {}; vals = vals.concat([rl.sonidoGana, rl.sonidoPierde], (f.premios || []).map(function (p) { return p.sonido; })); });
     vals.forEach(function (v) {
       var i = sonidoId(v); if (i && auds.indexOf(i) < 0) auds.push(i);
     });
@@ -249,11 +249,11 @@
     var rl = vista().ruleta, g = $('#game');   // sin ruleta elegida se usa la activa (fondo y música desde el formulario)
     g.style.backgroundImage = rl.fondo ? 'url("' + rl.fondo.replace(/"/g, '%22') + '")' : '';
     g.classList.toggle('con-fondo', !!rl.fondo);
-    var id = claveSonido(rl.sonidoFondo);
+    var musica = data.config.sonidoFondo, id = claveSonido(musica);   // música única para todas las ruletas
     if (id && game.bg && !game.bg.cancelado && game.bgId === id) {   // misma música: sigue sonando sin cortarse
       parar(game.fx); game.fx = null; if (game.bg.audio) game.bg.audio.volume = game.bg.vol;
     } else {
-      pararSonidos(); game.bg = tocar(rl.sonidoFondo, true); game.bgId = id;   // nace de un toque: el navegador permite el audio
+      pararSonidos(); game.bg = tocar(musica, true); game.bgId = id;   // nace de un toque: el navegador permite el audio
     }
   }
   function renderElige() {
