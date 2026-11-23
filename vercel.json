@@ -1,9 +1,12 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/totem",
-      "destination": "/totem/index.html"
-    },
+      "destination": "/totem/",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
     {
       "source": "/((?!totem/|assets/|icons/).*)",
       "destination": "/index.html"

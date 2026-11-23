@@ -147,9 +147,12 @@
       var q = v.play(); if (q && q.catch) q.catch(function () {});
     });
   }
-  addEventListener('pointerdown', function () {
+  /* Con el dedo, el navegador solo da permiso de sonido en pointerup/click (no en pointerdown). */
+  function activarSonidoVideos() {
     document.querySelectorAll('video[data-sonido]').forEach(function (v) { v.muted = false; v.removeAttribute('data-sonido'); });
-  }, true);
+  }
+  addEventListener('pointerdown', activarSonidoVideos, true);
+  addEventListener('pointerup', activarSonidoVideos, true);
   function reproductorDrive(el, did, a) {
     // Último recurso (p. ej. el video pesa demasiado): reproductor incrustado de Drive; dura lo configurado.
     if (!el.classList.contains('in')) return;
@@ -431,10 +434,15 @@
   var wl = null;
   function mantenerEncendida() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wl = l; }).catch(function () {}); } catch (e) {} }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { mantenerEncendida(); if (Date.now() - ultimaRev > REV_MIN_VISIBLE) revisar(); } });
-  addEventListener('pointerdown', function () {
+  /* Pantalla completa: se pide con cada toque hasta lograrla (y otra vez si se sale). Con el dedo, el navegador solo
+     acepta el permiso en pointerup/click (no en pointerdown), por eso se escuchan esos eventos. */
+  function pedirPantallaCompleta() {
     var enMarco = window.top !== window.self;
-    if (!enMarco && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
-  }, { once: true });
+    if (enMarco || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+    try { document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(function () {}); } catch (e) {}
+  }
+  addEventListener('pointerup', pedirPantallaCompleta);
+  addEventListener('click', pedirPantallaCompleta);
   mantenerEncendida();
   // Al cargar las tipografías de Google, la ruleta se vuelve a dibujar con ellas.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if ($('#wheel')) drawWheel(); });
