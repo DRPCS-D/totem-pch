@@ -261,7 +261,7 @@
   }
   function renderElige() {
     var c = data.config;
-    $('#gameBody').innerHTML = '<h1>' + esc(c.raffleTitle) + '</h1><div class="sub">Elegí tu ruleta</div><div class="elige">' +
+    $('#gameBody').innerHTML = '<h1>' + esc(c.raffleTitle) + '</h1><div class="sub info">Elegí tu ruleta</div><div class="elige">' +
       data.ruletas.map(function (r, i) { return '<button class="btn opcion" data-i="' + i + '">' + esc(r.nombre) + '</button>'; }).join('') + '</div>';
     document.querySelectorAll('.opcion').forEach(function (b) {
       b.onclick = function () {
