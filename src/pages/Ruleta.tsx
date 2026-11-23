@@ -491,7 +491,7 @@ export default function RuletaPage() {
           <Skeleton className="h-40" />
         ) : (
           <div className="space-y-4">
-            <Check label="Juego habilitado (muestra un pequeño ícono de regalo en la esquina inferior derecha del totem)" valor={draft.raffleEnabled} onCambiar={(v) => set('raffleEnabled', v)} />
+            <Check label="Juego habilitado (muestra un zona de toque invisible sobre el botón «Ruleta» de tu imagen de inicio)" valor={draft.raffleEnabled} onCambiar={(v) => set('raffleEnabled', v)} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título"><Input value={draft.raffleTitle} onChange={(e) => set('raffleTitle', e.target.value)} maxLength={60} /></Field>
               <Field label="Subtítulo"><Input value={draft.raffleSubtitle} onChange={(e) => set('raffleSubtitle', e.target.value)} maxLength={100} /></Field>

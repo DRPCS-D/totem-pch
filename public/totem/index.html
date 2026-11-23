@@ -47,16 +47,14 @@
   #ticker span { white-space:nowrap; font-size:38px; padding-left:100%; animation:tick 40s linear infinite; }
   @keyframes tick { to { transform:translateX(-100%); } }
 
-  /* Ícono sutil del sorteo */
-  #cta { position:absolute; right:36px; bottom:120px; width:120px; height:120px; z-index:20; border:0; border-radius:50%; background:#ffffff26; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); display:grid; place-items:center; cursor:pointer; opacity:.6; transition:opacity .3s, transform .15s; }
-  #cta:active { opacity:1; transform:scale(.92); }
-  #cta svg { width:60px; height:60px; fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 1px 3px #0006); }
+  /* Acceso al sorteo: zona invisible sobre el botón «Ruleta» dibujado en la imagen de inicio (centro en x=540, y=1431 del escenario 1080×1920; el área es algo mayor que el dibujo para que sea fácil de tocar). */
+  #cta { position:absolute; left:340px; top:1360px; width:400px; height:144px; z-index:20; border:0; border-radius:72px; background:transparent; padding:0; opacity:0; cursor:pointer; -webkit-tap-highlight-color:transparent; outline:none; }
+  #cta svg { display:none; }
   /* Con cabecera y/o cinta ocultas, el contenido ocupa todo el espacio liberado */
   #stage.sin-cabecera #top { display:none; }
   #stage.sin-cabecera #ads { top:0; }
   #stage.sin-cinta #ticker { display:none; }
   #stage.sin-cinta #ads { bottom:0; }
-  #stage.sin-cinta #cta { bottom:40px; }
   #stage.sin-cinta .slide, #stage.sin-cabecera .slide { padding-top:0; padding-bottom:0; }
   #acceso { position:absolute; top:0; left:0; width:300px; height:130px; z-index:26; }
   #forzar { position:absolute; top:0; right:0; width:260px; height:130px; z-index:26; }
